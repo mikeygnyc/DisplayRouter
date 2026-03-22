@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlmodel import Session, select
@@ -15,6 +15,7 @@ from shared.schemas import (
     DisplayTargetUpdate,
     LogEventList,
     LogEventOut,
+    MonitoringSummary,
     ResponseMeta,
     RuleCreate,
     RuleOut,
@@ -26,12 +27,15 @@ from shared.schemas import (
     TemplateOut,
     TemplateUpdate,
     TemplateList,
+    DisplayMonitor,
 )
 from shared.utils.ids import make_id
 from shared.utils.pagination import paginate
 from router.core.security import require_admin
 from router.services.logs import list_logs
 from router.services.logging import log_event
+from router.services.display_manager import manager as display_manager
+from router.core.metrics import metrics
 
 router = APIRouter(dependencies=[Depends(require_admin)])
 
@@ -424,3 +428,26 @@ def list_log_events(
     ]
     meta = ResponseMeta(page=1, page_size=len(data), total=len(data))
     return LogEventList(data=data, meta=meta)
+
+
+@router.get("/admin/monitoring", response_model=MonitoringSummary)
+def get_monitoring(session: Session = Depends(get_session)) -> MonitoringSummary:
+    displays = session.exec(select(DisplayTarget)).all()
+    display_status = []
+    for display in displays:
+        last_payload = display_manager.last_payload(display.id) or {}
+        display_status.append(
+            DisplayMonitor(
+                display_id=display.id,
+                connected=display_manager.is_connected(display.id),
+                last_payload_id=last_payload.get("payload_id"),
+                last_payload_at=display_manager.last_payload_at(display.id),
+                queue_length=0,
+            )
+        )
+    return MonitoringSummary(
+        router_status="ok",
+        router_time=datetime.now(timezone.utc),
+        payloads_received=metrics.get("payloads_received", 0),
+        displays=display_status,
+    )

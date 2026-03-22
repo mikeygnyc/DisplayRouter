@@ -203,3 +203,18 @@ class LogEventOut(BaseModel):
 class LogEventList(Envelope):
     data: List[LogEventOut]
     meta: ResponseMeta
+
+
+class DisplayMonitor(BaseModel):
+    display_id: str
+    connected: bool
+    last_payload_id: Optional[str] = None
+    last_payload_at: Optional[datetime] = None
+    queue_length: int
+
+
+class MonitoringSummary(BaseModel):
+    router_status: str
+    router_time: datetime
+    payloads_received: int
+    displays: List[DisplayMonitor]

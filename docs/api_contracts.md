@@ -211,6 +211,11 @@ Client to router traffic is HTTP POST. Router to display traffic is WebSocket.
   - `display_id` (optional)
   - `limit` (optional, default 100)
 
+### Monitoring Summary
+- Method: `GET`
+- Path: `/admin/monitoring`
+- Auth: Admin
+
 ## Display Server WebSocket
 
 ### Connect
