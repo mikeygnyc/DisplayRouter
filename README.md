@@ -42,6 +42,23 @@ A system that allows one or more producers of data to feed one or more RGB LED m
 - Integration tests will be conducted to verify that the components work together as expected, particularly the communication between the router/formatter server and the display server, as well as the client API interactions.
 - End-to-end tests will be performed to simulate real-world usage scenarios, ensuring that data flows correctly from clients to the display and that the management interface functions as intended.
 
+## API Specifications
+- OpenAPI (HTTP): `docs/openapi.yaml`
+- AsyncAPI (WebSocket): `docs/asyncapi.yaml`
+
+## How to Render Docs
+OpenAPI (Swagger UI):
+```bash
+docker run --rm -p 8080:8080 \
+  -e SWAGGER_JSON=/spec/openapi.yaml \
+  -v "$(pwd)/docs/openapi.yaml:/spec/openapi.yaml" \
+  swaggerapi/swagger-ui
+```
+AsyncAPI (HTML):
+```bash
+npx @asyncapi/generator docs/asyncapi.yaml @asyncapi/html-template -o docs/asyncapi-html
+```
+
 ## Conclusion
 
 This system will provide a flexible and scalable solution for displaying data from various producers on RGB LED matrix displays, with a robust management interface for controlling the display logic and monitoring the system's performance.
