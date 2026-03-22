@@ -66,6 +66,9 @@ Client to router traffic is HTTP POST. Router to display traffic is WebSocket.
   "data": {}
 }
 ```
+- `data` can include:
+  - `commands`: rgbmatrix command stream (see README)
+  - `pixels`: full pixel buffer `{width,height,pixels}`
 - Response body:
 ```json
 {
@@ -227,6 +230,28 @@ Client to router traffic is HTTP POST. Router to display traffic is WebSocket.
 - Method: `GET`
 - Path: `/admin/monitoring`
 - Auth: Admin
+
+### Broadcast Text
+- Method: `POST`
+- Path: `/admin/broadcasts/text`
+- Auth: Admin
+- Query params:
+  - `text` (required)
+  - `display_ids` (optional, array)
+  - `all_displays` (optional, default true)
+  - `color` (optional, default #ffffff)
+  - `scroll_ms_per_px` (optional, default 15)
+  - `duration_seconds` (optional, default 30)
+  - `transition` (optional, default slide)
+
+### Broadcast Commands
+- Method: `POST`
+- Path: `/admin/broadcasts/commands`
+- Auth: Admin
+- Body: JSON array of command objects
+- Query params:
+  - `display_ids` (optional, array)
+  - `all_displays` (optional, default true)
 
 ## Display Server WebSocket
 

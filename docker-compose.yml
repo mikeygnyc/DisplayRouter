@@ -8,6 +8,43 @@ services:
       DISPLAY_SECRET: dev-display-secret
       API_KEY_SALT: dev-salt
       DATABASE_URL: sqlite:///./display_router.db
+      ROUTER_CONFIG_FILE: /app/config/router.json
     volumes:
       - ./data:/app/data
+      - ./config:/app/config:ro
     command: ["uvicorn", "router.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+  display:
+    build: .
+    depends_on:
+      - router
+    environment:
+      DISPLAY_CONFIG_FILE: /app/config/display.json
+      DISPLAY_RENDERER: sim
+    volumes:
+      - ./config:/app/config:ro
+    command: ["python", "-m", "display.main"]
+
+  sim-ui:
+    build: .
+    depends_on:
+      - display
+    ports:
+      - "8083:8083"
+    command: ["uvicorn", "display.sim_ui:app", "--host", "0.0.0.0", "--port", "8083"]
+
+  sim-server:
+    build: .
+    depends_on:
+      - display
+    ports:
+      - "8082:8082"
+    command: ["uvicorn", "display.sim_server:app", "--host", "0.0.0.0", "--port", "8082"]
+
+  sim-playground:
+    build: .
+    depends_on:
+      - display
+    ports:
+      - "8084:8084"
+    command: ["uvicorn", "display.sim_playground:app", "--host", "0.0.0.0", "--port", "8084"]

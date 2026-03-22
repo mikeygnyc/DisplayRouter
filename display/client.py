@@ -11,8 +11,8 @@ from display.render import render_payload, render_to_console
 from display.state import last_frame, last_payload
 from display.transitions import Transition, apply_transition
 from display.heartbeat import start_heartbeat_sender
-from display.rgbmatrix_renderer import render_frame as render_to_matrix
 from display.sim_renderer import render_frame as render_to_sim
+from display.command_executor import execute_commands, CommandError
 
 
 async def handle_message(message: Dict[str, Any]) -> None:
@@ -20,6 +20,16 @@ async def handle_message(message: Dict[str, Any]) -> None:
     global last_frame
     if message.get("type") == "display_payload":
         last_payload = message
+        render_payload_data = message.get("render", {})
+        if isinstance(render_payload_data, dict) and render_payload_data.get("commands"):
+            try:
+                execute_commands(render_payload_data.get("commands", []))
+            except CommandError as exc:
+                print(f"[display] command error: {exc}")
+            return
+        if isinstance(render_payload_data, dict) and render_payload_data.get("pixels"):
+            from display import state
+            state.last_pixels = render_payload_data.get("pixels")
         frame = render_payload(message)
         last_frame = frame
         transition_data = message.get("transition", {}) if isinstance(message, dict) else {}
@@ -30,10 +40,18 @@ async def handle_message(message: Dict[str, Any]) -> None:
         render_fn = render_to_console
         if settings.renderer == "rgbmatrix":
             try:
-                render_fn = render_to_matrix
+                from display.rgbmatrix_renderer import render_frame as render_to_matrix
             except Exception as exc:
                 print(f"[display] rgbmatrix unavailable: {exc}")
-                render_fn = render_to_console
+            else:
+                def safe_render(frame_to_render):
+                    try:
+                        render_to_matrix(frame_to_render)
+                    except Exception as exc:
+                        print(f"[display] rgbmatrix render failed: {exc}")
+                        render_to_console(frame_to_render)
+
+                render_fn = safe_render
         elif settings.renderer == "sim":
             render_fn = render_to_sim
         apply_transition(frame, transition, render_fn)

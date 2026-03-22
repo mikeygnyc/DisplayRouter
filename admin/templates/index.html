@@ -1,0 +1,174 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Display Router Admin</title>
+    <link rel="stylesheet" href="/static/admin.css" />
+    <script src="/static/admin.js" defer></script>
+  </head>
+  <body>
+    <header>
+      <h1>Display Router Admin</h1>
+      <div class="muted">Status and quick links for management endpoints</div>
+      <div class="token">
+        <input id="tokenInput" placeholder="Admin token (Bearer)" />
+        <button onclick="saveToken()">Save Token</button>
+      </div>
+    </header>
+    <div class="wrap">
+      <nav>
+        <a href="#monitoring">Monitoring</a>
+        <a href="#clients">Clients</a>
+        <a href="#templates">Templates</a>
+        <a href="#rules">Rules</a>
+        <a href="#displays">Displays</a>
+        <a href="#logs">Logs</a>
+        <a href="#sim">Simulator</a>
+      </nav>
+      <main>
+        <div id="monitoring" class="card">
+          <h2>Monitoring</h2>
+          <div class="monitor-grid" id="monitoringData">
+            <div>Router health: <code>/health</code></div>
+            <div>Monitoring summary: <code>/admin/monitoring</code></div>
+            <div class="muted">Not connected.</div>
+          </div>
+          <div id="displayStatus" class="status-list muted">No display data.</div>
+        </div>
+
+        <div id="clients" class="card">
+          <h2>Clients</h2>
+          <div class="row">
+            <div>List: <code>/admin/clients</code></div>
+            <div>Update: <code>/admin/clients/{client_id}</code></div>
+          </div>
+          <div class="toolbar">
+            <button onclick="loadClients()">Refresh</button>
+          </div>
+          <div class="form">
+            <input id="clientName" placeholder="Client name" />
+            <input id="clientPayloadTypes" placeholder="Payload types (comma separated)" />
+            <button onclick="createClient()">Create Client</button>
+          </div>
+          <div id="clientError" class="error"></div>
+          <div id="clientList" class="list muted">Not loaded.</div>
+        </div>
+
+        <div id="templates" class="card">
+          <h2>Templates</h2>
+          <div class="row">
+            <div>List: <code>/admin/templates</code></div>
+            <div>Update: <code>/admin/templates/{template_id}</code></div>
+          </div>
+          <div class="toolbar">
+            <button onclick="loadTemplates()">Refresh</button>
+          </div>
+          <div class="form">
+            <input id="tplName" placeholder="Template name" />
+            <input id="tplPayloadType" placeholder="Payload type" />
+            <input id="tplTemplate" placeholder="Template string (e.g., {% raw %}{{temp_f}}{% endraw %}F)" />
+            <button onclick="createTemplate()">Create Template</button>
+          </div>
+          <div id="templateError" class="error"></div>
+          <div id="templateList" class="list muted">Not loaded.</div>
+        </div>
+
+        <div id="rules" class="card">
+          <h2>Rules</h2>
+          <div class="row">
+            <div>List: <code>/admin/rules</code></div>
+            <div>Update: <code>/admin/rules/{rule_id}</code></div>
+          </div>
+          <div class="toolbar">
+            <button onclick="loadRules()">Refresh</button>
+          </div>
+          <div class="form">
+            <input id="ruleName" placeholder="Rule name" />
+            <input id="ruleClientId" placeholder="Match client_id" />
+            <input id="rulePayloadType" placeholder="Match payload_type" />
+            <input id="ruleDisplayTargets" placeholder="Display targets (comma separated)" />
+            <input id="rulePriority" placeholder="Priority" />
+            <button onclick="createRule()">Create Rule</button>
+          </div>
+          <div id="ruleError" class="error"></div>
+          <div id="ruleList" class="list muted">Not loaded.</div>
+        </div>
+
+        <div id="displays" class="card">
+          <h2>Displays</h2>
+          <div class="row">
+            <div>List: <code>/admin/displays</code></div>
+            <div>Update: <code>/admin/displays/{display_id}</code></div>
+          </div>
+          <div class="toolbar">
+            <button onclick="loadDisplays()">Refresh</button>
+          </div>
+          <div id="displayList" class="list muted">Not loaded.</div>
+          <div id="displayDrawer" class="drawer muted">Select a display to view details.</div>
+        </div>
+
+        <div id="logs" class="card">
+          <h2>Logs</h2>
+          <div class="row">
+            <div>List: <code>/admin/logs</code></div>
+            <div>Replay: <code>/admin/logs/{log_id}/replay</code></div>
+          </div>
+          <div class="toolbar">
+            <input id="logFilter" placeholder="Filter by message (e.g., payload_received)" />
+            <button onclick="loadLogs()">Refresh</button>
+          </div>
+          <div id="logList" class="list muted">Not loaded.</div>
+        </div>
+
+        <div id="broadcasts" class="card">
+          <h2>Broadcast History</h2>
+          <div class="toolbar">
+            <button onclick="loadBroadcasts()">Refresh</button>
+          </div>
+          <div id="broadcastList" class="list muted">Not loaded.</div>
+        </div>
+
+        <div id="sim" class="card">
+          <h2>Simulator</h2>
+          <div class="row">
+            <div>UI: <code>uvicorn display.sim_ui:app --reload --port 8083</code></div>
+            <div>Server: <code>uvicorn display.sim_server:app --reload --port 8082</code></div>
+          </div>
+          <div class="row">
+            <div>Playground: <code>uvicorn display.sim_playground:app --reload --port 8084</code></div>
+            <div class="muted">Default embed: <code>http://localhost:8084</code></div>
+          </div>
+          <div class="toolbar">
+            <input id="playgroundUrl" placeholder="Playground URL (e.g., http://localhost:8084)" />
+            <button onclick="loadPlayground()">Load</button>
+          </div>
+          <iframe id="playgroundFrame" title="Playground"></iframe>
+        </div>
+
+        <div id="broadcast" class="card">
+          <h2>Broadcast Text</h2>
+          <div class="form">
+            <input id="broadcastText" placeholder="Message to display" />
+            <input id="broadcastTargets" placeholder="Display IDs (comma separated, blank = all)" />
+            <input id="broadcastColor" placeholder="Color (e.g., #ffcc00)" />
+            <input id="broadcastScroll" placeholder="Scroll ms/px (default 15)" />
+            <input id="broadcastDuration" placeholder="Duration seconds (default 30)" />
+            <button onclick="sendBroadcast()">Send Broadcast</button>
+          </div>
+          <div id="broadcastError" class="error"></div>
+        </div>
+
+        <div id="broadcastCommands" class="card">
+          <h2>Broadcast Commands</h2>
+          <div class="form">
+            <textarea id="commandStream" rows="6" placeholder='[{"op":"RGBMatrixOptions","id":"opts"}]'></textarea>
+            <input id="commandTargets" placeholder="Display IDs (comma separated, blank = all)" />
+            <button onclick="sendCommandBroadcast()">Send Commands</button>
+            <button onclick="loadCommandSample()">Load Sample</button>
+          </div>
+          <div id="commandError" class="error"></div>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,5 @@
+database_url = "sqlite:///./display_router.db"
+admin_token = "dev-admin-token"
+api_key_salt = "dev-salt"
+display_secret = "dev-display-secret"
+log_retention_days = 30

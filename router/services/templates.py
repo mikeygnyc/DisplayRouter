@@ -10,8 +10,13 @@ from router.domain.models import Template
 def render_template(template: Template, data: Dict[str, Any]) -> Dict[str, Any]:
     jinja = JinjaTemplate(template.template)
     resolved_text = jinja.render(**data)
-    return {
+    render = {
         "template": template.template,
         "resolved": {"text": resolved_text, **data},
         "style": template.default_style or {},
     }
+    if "commands" in data:
+        render["commands"] = data["commands"]
+    if "pixels" in data:
+        render["pixels"] = data["pixels"]
+    return render

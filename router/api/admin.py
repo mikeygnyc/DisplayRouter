@@ -38,6 +38,7 @@ from router.services.logging import log_event
 from router.services.display_manager import manager as display_manager
 from router.services.rules import select_rules
 from router.services.templates import render_template
+from router.services.commands import validate_commands
 from router.core.metrics import metrics
 
 router = APIRouter(dependencies=[Depends(require_admin)])
@@ -576,3 +577,92 @@ def get_monitoring(session: Session = Depends(get_session)) -> MonitoringSummary
         payloads_received=metrics.get("payloads_received", 0),
         displays=display_status,
     )
+
+
+@router.post("/admin/broadcasts/text")
+async def broadcast_text(
+    text: str,
+    display_ids: list[str] | None = None,
+    all_displays: bool = True,
+    color: str = "#ffffff",
+    scroll_ms_per_px: int = 15,
+    duration_seconds: int = 30,
+    transition: str = "slide",
+    session: Session = Depends(get_session),
+) -> dict:
+    if all_displays:
+        displays = session.exec(select(DisplayTarget)).all()
+        target_ids = [d.id for d in displays]
+    else:
+        target_ids = display_ids or []
+    if not target_ids:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No display targets provided")
+
+    payload_id = make_id("pld")
+    render = {
+        "template": "{{text}}",
+        "resolved": {"text": text},
+        "style": {"color": color, "scroll_ms_per_px": scroll_ms_per_px},
+    }
+    expires_at = (datetime.now(timezone.utc) + timedelta(seconds=duration_seconds)).isoformat()
+    sent = []
+    for display_id in target_ids:
+        await display_manager.send(
+            display_id,
+            {
+                "type": "display_payload",
+                "display_id": display_id,
+                "payload_id": payload_id,
+                "render": render,
+                "transition": {"type": transition, "duration_ms": 0},
+                "expires_at": expires_at,
+                "priority": 1000,
+            },
+        )
+        sent.append(display_id)
+
+    log_event(
+        session,
+        "info",
+        "broadcast_text",
+        {"payload_id": payload_id, "display_ids": sent},
+    )
+    return {"payload_id": payload_id, "display_ids": sent}
+
+
+@router.post("/admin/broadcasts/commands")
+async def broadcast_commands(
+    commands: list[dict],
+    display_ids: list[str] | None = None,
+    all_displays: bool = True,
+    session: Session = Depends(get_session),
+) -> dict:
+    errors = validate_commands(commands)
+    if errors:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="; ".join(errors))
+    if all_displays:
+        displays = session.exec(select(DisplayTarget)).all()
+        target_ids = [d.id for d in displays]
+    else:
+        target_ids = display_ids or []
+    if not target_ids:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No display targets provided")
+    payload_id = make_id("pld")
+    render = {"commands": commands}
+    sent = []
+    for display_id in target_ids:
+        await display_manager.send(
+            display_id,
+            {
+                "type": "display_payload",
+                "display_id": display_id,
+                "payload_id": payload_id,
+                "render": render,
+                "transition": {"type": "instant", "duration_ms": 0},
+                "expires_at": (datetime.now(timezone.utc) + timedelta(seconds=30)).isoformat(),
+                "priority": 1000,
+            },
+        )
+        sent.append(display_id)
+    log_event(session, "info", "broadcast_commands", {"payload_id": payload_id, "display_ids": sent})
+    return {"payload_id": payload_id, "display_ids": sent}

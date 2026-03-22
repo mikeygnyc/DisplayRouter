@@ -252,5 +252,10 @@ def push(payload: dict) -> dict:
     from display import state
     from display.render import RenderFrame
 
+    if "pixels" in payload:
+        state.last_pixels = payload
+        state.last_frame = None
+        return {"ok": True}
     state.last_frame = RenderFrame(text=payload.get("text", ""), style=payload.get("style", {}))
+    state.last_pixels = None
     return {"ok": True}

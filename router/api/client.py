@@ -22,6 +22,7 @@ from router.services.display_manager import manager as display_manager
 from router.services.logging import log_event
 from router.services.rules import select_rules
 from router.services.templates import render_template
+from router.services.commands import validate_commands
 from shared.utils.ids import make_id
 from shared.utils.pagination import paginate
 from router.core.security import hash_api_key, is_admin_token, require_admin, require_client_api_key
@@ -136,7 +137,21 @@ async def submit_payload(
         "resolved": payload.data,
         "style": {},
     }
-    if selected_template:
+    if "commands" in payload.data or "pixels" in payload.data:
+        if "commands" in payload.data:
+            errors = validate_commands(payload.data["commands"])
+            if errors:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="; ".join(errors))
+        render = {
+            "template": "{commands}",
+            "resolved": payload.data,
+            "style": payload.data.get("style", {}),
+        }
+        if "commands" in payload.data:
+            render["commands"] = payload.data["commands"]
+        if "pixels" in payload.data:
+            render["pixels"] = payload.data["pixels"]
+    elif selected_template:
         render = render_template(selected_template, payload.data)
 
     rules = session.exec(select(Rule)).all()

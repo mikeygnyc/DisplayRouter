@@ -1,0 +1,16 @@
+{
+  "router_ws_url": "ws://localhost:8000/display/ws",
+  "display_id": "disp_main",
+  "display_secret": "dev-display-secret",
+  "heartbeat_interval_seconds": 10,
+  "renderer": "console",
+  "matrix_width": 64,
+  "matrix_height": 32,
+  "matrix_chain": 1,
+  "matrix_parallel": 1,
+  "matrix_brightness": 60,
+  "matrix_gpio_slowdown": 2,
+  "matrix_hardware_mapping": "regular",
+  "matrix_font_path": "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+  "matrix_font_size": 10
+}

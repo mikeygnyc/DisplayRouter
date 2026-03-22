@@ -61,6 +61,10 @@ HTML = """
         white-space: nowrap;
         will-change: transform;
       }
+      canvas {
+        position: absolute;
+        inset: 0;
+      }
       .dots {
         position: absolute;
         inset: 0;
@@ -81,6 +85,7 @@ HTML = """
       <div class="matrix">
         <div class="grid"></div>
         <div class="dots"></div>
+        <canvas id="pixels"></canvas>
         <div id="text" class="text">Waiting...</div>
       </div>
       <div id="meta" class="meta">Polling /sim every 1s</div>
@@ -93,6 +98,28 @@ HTML = """
           const text = data.text || 'Waiting...';
           const style = data.style || {};
           const el = document.getElementById('text');
+          const canvas = document.getElementById('pixels');
+          const ctx = canvas.getContext('2d');
+          const matrix = document.querySelector('.matrix');
+          canvas.width = matrix.clientWidth;
+          canvas.height = matrix.clientHeight;
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          if (data.pixels && data.pixels.pixels) {
+            const pixels = data.pixels.pixels;
+            const width = data.pixels.width;
+            const height = data.pixels.height;
+            const sx = canvas.width / width;
+            const sy = canvas.height / height;
+            for (let y = 0; y < height; y++) {
+              for (let x = 0; x < width; x++) {
+                const [r,g,b] = pixels[y][x];
+                ctx.fillStyle = `rgb(${r},${g},${b})`;
+                ctx.fillRect(x * sx, y * sy, sx, sy);
+              }
+            }
+            el.textContent = '';
+            return;
+          }
           if (Array.isArray(style.colors) && style.colors.length === text.length) {
             el.innerHTML = '';
             for (let i = 0; i < text.length; i++) {

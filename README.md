@@ -2,22 +2,19 @@
 
 ## Summary
 
-A system that allows one or more producers of data to feed one or more RGB LED matrix displays with a controlling router/formatter in the middle.
+Display Router connects data producers to RGB LED matrix displays through a router/formatter that applies templates, rules, and transitions.
 
 ## Components
 
-1. **Client API**: A set of APIs that allow various producers of data to connect to the router/formatter server, identify themselves, and send payloads for display.
-
-2. **Router/Formatter Server**: A server that uses rules and templates to determine what client data should be formatted and routed to which display server.
-
-3. **Display Server**: A Python-based server running on a Raspberry Pi that listens for incoming messages from clients (data producers) and renders them on an RGB LED matrix display using the `rgbmatrix` library.
-
-4. **Management Interface**: A web-based interface for managing clients, reviewing logs, and setting rules for display priorities and transitions.
+1. **Client API**: Allows producers to register and send payloads.
+2. **Router/Formatter Server**: Applies rules/templates and routes to displays.
+3. **Display Server**: Renders payloads to `rgbmatrix`, console, or simulator output.
+4. **Management Interface**: Admin UI for monitoring, CRUD, and broadcasts.
 
 ## Repository Structure
 - `router/`: Router/Formatter API service (current MVP)
-- `display/`: Display Server (Phase 3)
-- `admin/`: Management Interface (Phase 4)
+- `display/`: Display Server
+- `admin/`: Management Interface
 - `shared/`: Shared schemas/utilities
 - `docs/`: API contracts and implementation plan
 
@@ -37,31 +34,71 @@ A system that allows one or more producers of data to feed one or more RGB LED m
 - Allows administrators to manage clients, set display templates, and define rules for how data is displayed including priority to certain sources, transition types between payload (instant, delayed, etc).
 - Provides logging and monitoring capabilities for the system.
 
-## Implementation Details
-- The display server will be implemented using Python, utilizing the `rgbmatrix` library's python bindings for controlling the LED matrix display. This shall run on a Raspberry Pi.
-- The router/formatter server will also be implemented in Python, using a web framework such as Flask or FastAPI to handle incoming client connections and manage routing logic.
-- The management interface will be a web application, potentially built with a frontend framework like React or Vite.
-- The client API will be designed to allow for easy integration by various data producers, with clear documentation on how to connect and send data.
+## Quickstart
+Run the router:
+```bash
+pip install -r requirements.txt
+uvicorn router.main:app --reload
+```
+Run the admin UI:
+```bash
+uvicorn admin.main:app --reload --port 8090
+```
+Run a display client in simulator mode:
+```bash
+DISPLAY_RENDERER=sim python -m display.main
+```
+Run simulator UI and playground:
+```bash
+uvicorn display.sim_ui:app --reload --port 8083
+uvicorn display.sim_playground:app --reload --port 8084
+```
+
+### Configuration At A Glance
+- Router config file: `ROUTER_CONFIG_FILE=./config/router.json`
+- Display config file: `DISPLAY_CONFIG_FILE=./config/display.json`
+- Simulator render mode: `DISPLAY_RENDERER=sim`
+- Admin token: set `ADMIN_TOKEN` on the router and paste it into the Admin UI token box
+
+### Ports
+- Router API (`/api`, `/admin`): `http://localhost:8000`
+- Admin UI (HTML shell): `http://localhost:8090`
+- Simulator server (`/sim` JSON): `http://localhost:8082`
+- Simulator UI (viewer): `http://localhost:8083`
+- Simulator playground (editor + preview): `http://localhost:8084`
+
+### System Diagram
+```text
+Producers -> Client API -> Router/Formatter -> Display Server -> RGB Matrix
+                               |                   |
+                               |                   +-> Simulator (/sim)
+                               |
+                               +-> Admin UI (monitoring + CRUD + broadcast)
+```
+
+### Data Flow Example
+```text
+Client payload -> template -> render payload -> display/sim output
+```
 
 ## Testing
 
-- Unit tests will be written for each component of the system to ensure functionality and reliability.
-- Integration tests will be conducted to verify that the components work together as expected, particularly the communication between the router/formatter server and the display server, as well as the client API interactions.
-- End-to-end tests will be performed to simulate real-world usage scenarios, ensuring that data flows correctly from clients to the display and that the management interface functions as intended.
+- Unit tests cover router rules, templates, display rendering, rgbmatrix compatibility, and command streams.
+- Integration tests validate router-to-display flows and mock matrix rendering.
+- Run tests via `make test`.
 
 ## API Specifications
 - OpenAPI (HTTP): `docs/openapi.yaml`
 - AsyncAPI (WebSocket): `docs/asyncapi.yaml`
 
 ## Run Router API
-```bash
-pip install -r requirements.txt
-uvicorn router.main:app --reload
-```
-
-Or via console script after install:
+Via console script after install:
 ```bash
 display-router --reload
+```
+Optional config file:
+```bash
+ROUTER_CONFIG_FILE=./config/router.json uvicorn router.main:app --reload
 ```
 
 ## Makefile Helpers
@@ -86,10 +123,6 @@ docker compose up --build
 - `scripts/install_display.sh` (Raspberry Pi display server install helper)
 
 ## Admin UI
-Run the admin UI shell:
-```bash
-uvicorn admin.main:app --reload --port 8090
-```
 Use the token input at the top of the page to enable live monitoring calls.
 Displays and logs render inline, and you can embed the simulator playground by providing its URL.
 
@@ -99,6 +132,7 @@ Displays and logs render inline, and you can embed the simulator playground by p
 3. Edit `/etc/systemd/system/display-router.service` for router URL, display ID, and secret
 
 Optional: set `DISPLAY_REQUIREMENTS=0` to skip rgbmatrix install on non-Pi dev machines.
+For simulator-only runs, you can skip rgbmatrix entirely and set `DISPLAY_RENDERER=sim`.
 
 ### rgbmatrix
 Repo:
@@ -115,6 +149,10 @@ pip install git+https://github.com/hzeller/rpi-rgb-led-matrix
 ```
 
 ## Display Server Config
+Config file support (JSON or TOML):
+- `DISPLAY_CONFIG_FILE` or `CONFIG_FILE` to point at a config file.
+- Precedence: defaults -> config file -> env vars.
+
 - `ROUTER_WS_URL` (default `ws://localhost:8000/display/ws`)
 - `DISPLAY_ID` (default `disp_main`)
 - `DISPLAY_SECRET` (default `dev-display-secret`)
@@ -129,6 +167,21 @@ pip install git+https://github.com/hzeller/rpi-rgb-led-matrix
 - `MATRIX_HARDWARE_MAPPING` (default `regular`)
 - `MATRIX_FONT_PATH` (default `/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf`)
 - `MATRIX_FONT_SIZE` (default `10`)
+
+Example:
+```bash
+DISPLAY_CONFIG_FILE=./config/display.json python -m display.main
+```
+
+## Router Config
+Config file support (JSON or TOML):
+- `ROUTER_CONFIG_FILE` or `CONFIG_FILE` to point at a config file.
+- Precedence: defaults -> config file -> env vars.
+
+Example:
+```bash
+ROUTER_CONFIG_FILE=./config/router.json uvicorn router.main:app --reload
+```
 
 ## Display Simulator
 Run a simple simulator web endpoint:
@@ -153,8 +206,44 @@ Use **Save Preset** (stored in browser localStorage) and **Export JSON** for reu
 Use **Import JSON** to load a saved preset file.
 Imported presets are saved automatically using the filename.
 
+## rgbmatrix Emulator
+This repo includes a drop-in `rgbmatrix` Python emulator (based on commit `5225746` of `rpi-rgb-led-matrix`) that can run scripts without hardware.
+
+Optional client push:
+- Set `RGBMATRIX_EMULATOR_PUSH_URL` to a JSON endpoint (e.g. the simulator playground `http://localhost:8084/push`) to receive frames.
+The payload can include full pixel buffers:
+```json
+{
+  "width": 64,
+  "height": 32,
+  "pixels": [[[0,0,0], ...]]
+}
+```
+
+### Command Stream Payload
+You can send a command stream in `data.commands` via `/api/payloads`. Example:
+```json
+{
+  "commands": [
+    {"op":"RGBMatrixOptions","id":"opts"},
+    {"op":"setattr","target":"@opts","attr":"rows","value":32},
+    {"op":"RGBMatrix","id":"matrix","kwargs":{"options":"@opts"}},
+    {"op":"CreateFrameCanvas","id":"canvas","target":"@matrix"},
+    {"op":"Fill","target":"@canvas","args":[0,0,0]},
+    {"op":"Color","id":"red","args":[255,0,0]},
+    {"op":"DrawText","args":["@canvas","@font",0,10,"@red","HELLO"]},
+    {"op":"SwapOnVSync","target":"@matrix","args":["@canvas"]}
+  ]
+}
+```
+References use `@id` to refer to earlier objects. All rgbmatrix core and graphics ops are supported.
+
+Admin UI also supports broadcasting command streams via **Broadcast Commands**.
+Sample command stream: `display/sample_commands.json`.
+Sample pixel buffer: `display/sample_pixels.json`.
+
 ### Management UI Notes
-When the management UI arrives, we can embed the simulator and a real-time viewer that uses the same `/sim` interface.
+The management UI can embed the simulator playground and uses the same `/sim` interface for a real-time viewer.
 Payload style options for simulator:
 - `style.color`: single color (e.g., `#ffcc00`)
 - `style.colors`: per-character colors array (length must match text)
@@ -173,6 +262,5 @@ AsyncAPI (HTML):
 npx @asyncapi/generator docs/asyncapi.yaml @asyncapi/html-template -o docs/asyncapi-html
 ```
 
-## Conclusion
-
-This system will provide a flexible and scalable solution for displaying data from various producers on RGB LED matrix displays, with a robust management interface for controlling the display logic and monitoring the system's performance.
+## Notes
+The system supports command streams (`data.commands`), full pixel buffers, and simulator embeds that use the same `/sim` interface as the display server.

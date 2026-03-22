@@ -614,6 +614,123 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+  /admin/broadcasts/text:
+    post:
+      summary: Broadcast text to displays
+      tags: [admin]
+      security:
+        - AdminBearerAuth: []
+      parameters:
+        - name: text
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: display_ids
+          in: query
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+        - name: all_displays
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: true
+        - name: color
+          in: query
+          required: false
+          schema:
+            type: string
+            default: "#ffffff"
+        - name: scroll_ms_per_px
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 15
+        - name: duration_seconds
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 30
+        - name: transition
+          in: query
+          required: false
+          schema:
+            type: string
+            default: slide
+      responses:
+        '200':
+          description: Broadcast accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  payload_id:
+                    type: string
+                  display_ids:
+                    type: array
+                    items:
+                      type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /admin/broadcasts/commands:
+    post:
+      summary: Broadcast rgbmatrix command stream
+      tags: [admin]
+      security:
+        - AdminBearerAuth: []
+      parameters:
+        - name: display_ids
+          in: query
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+        - name: all_displays
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: object
+      responses:
+        '200':
+          description: Broadcast accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  payload_id:
+                    type: string
+                  display_ids:
+                    type: array
+                    items:
+                      type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /display/health:
     get:
       summary: Display server health check

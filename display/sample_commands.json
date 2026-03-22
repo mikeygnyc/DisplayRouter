@@ -1,0 +1,12 @@
+[
+  {"op": "RGBMatrixOptions", "id": "opts"},
+  {"op": "setattr", "target": "@opts", "attr": "rows", "value": 32},
+  {"op": "setattr", "target": "@opts", "attr": "cols", "value": 64},
+  {"op": "RGBMatrix", "id": "matrix", "kwargs": {"options": "@opts"}},
+  {"op": "CreateFrameCanvas", "id": "canvas", "target": "@matrix"},
+  {"op": "Fill", "target": "@canvas", "args": [0, 0, 0]},
+  {"op": "Color", "id": "red", "args": [255, 0, 0]},
+  {"op": "Font", "id": "font"},
+  {"op": "DrawText", "args": ["@canvas", "@font", 0, 12, "@red", "HELLO"]},
+  {"op": "SwapOnVSync", "target": "@matrix", "args": ["@canvas"]}
+]

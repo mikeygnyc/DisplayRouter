@@ -29,4 +29,7 @@ Homepage = "https://example.com"
 display-router = "router.cli:main"
 
 [tool.setuptools.packages.find]
-include = ["router*", "shared*", "display*", "admin*"]
+include = ["router*", "shared*", "display*", "admin*", "rgbmatrix*"]
+
+[tool.setuptools.package-data]
+admin = ["templates/*.html", "static/*.css", "static/*.js"]
