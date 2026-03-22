@@ -51,6 +51,14 @@ class ClientOut(BaseModel):
     disabled: bool
 
 
+class ClientUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    contact: Optional[str] = None
+    payload_types: Optional[List[str]] = None
+    disabled: Optional[bool] = None
+
+
 class ClientList(Envelope):
     data: List[ClientOut]
     meta: ResponseMeta
@@ -91,6 +99,14 @@ class TemplateOut(BaseModel):
     created_at: datetime
 
 
+class TemplateUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    payload_type: Optional[str] = None
+    template: Optional[str] = None
+    default_style: Optional[Dict[str, Any]] = None
+
+
 class TemplateList(Envelope):
     data: List[TemplateOut]
     meta: ResponseMeta
@@ -124,6 +140,17 @@ class RuleOut(RuleCreate):
     enabled: bool
 
 
+class RuleUpdate(BaseModel):
+    name: Optional[str] = None
+    match: Optional[RuleMatch] = None
+    priority: Optional[int] = None
+    display_targets: Optional[List[str]] = None
+    transition: Optional[str] = None
+    cooldown_seconds: Optional[int] = None
+    schedule: Optional[RuleSchedule] = None
+    enabled: Optional[bool] = None
+
+
 class DisplayTargetCreate(BaseModel):
     name: str
     host: str
@@ -137,8 +164,21 @@ class DisplayTargetOut(DisplayTargetCreate):
     disabled: bool
 
 
+class DisplayTargetUpdate(BaseModel):
+    name: Optional[str] = None
+    host: Optional[str] = None
+    port: Optional[int] = None
+    capabilities: Optional[Dict[str, Any]] = None
+    disabled: Optional[bool] = None
+
+
 class DisplayTargetList(Envelope):
     data: List[DisplayTargetOut]
+    meta: ResponseMeta
+
+
+class RuleList(Envelope):
+    data: List[RuleOut]
     meta: ResponseMeta
 
 

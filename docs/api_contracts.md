@@ -87,6 +87,16 @@ Client to router traffic is HTTP POST. Router to display traffic is WebSocket.
 - Path: `/admin/clients`
 - Auth: Admin
 
+### Update Client
+- Method: `PUT`
+- Path: `/admin/clients/{client_id}`
+- Auth: Admin
+
+### Disable Client
+- Method: `DELETE`
+- Path: `/admin/clients/{client_id}`
+- Auth: Admin
+
 ### Create Template
 - Method: `POST`
 - Path: `/admin/templates`
@@ -101,6 +111,21 @@ Client to router traffic is HTTP POST. Router to display traffic is WebSocket.
   "default_style": {}
 }
 ```
+
+### List Templates (Admin)
+- Method: `GET`
+- Path: `/admin/templates`
+- Auth: Admin
+
+### Update Template
+- Method: `PUT`
+- Path: `/admin/templates/{template_id}`
+- Auth: Admin
+
+### Delete Template
+- Method: `DELETE`
+- Path: `/admin/templates/{template_id}`
+- Auth: Admin
 
 ### Create Rule
 - Method: `POST`
@@ -128,6 +153,21 @@ Client to router traffic is HTTP POST. Router to display traffic is WebSocket.
 }
 ```
 
+### List Rules
+- Method: `GET`
+- Path: `/admin/rules`
+- Auth: Admin
+
+### Update Rule
+- Method: `PUT`
+- Path: `/admin/rules/{rule_id}`
+- Auth: Admin
+
+### Delete Rule
+- Method: `DELETE`
+- Path: `/admin/rules/{rule_id}`
+- Auth: Admin
+
 ### List Display Targets
 - Method: `GET`
 - Path: `/admin/displays`
@@ -150,6 +190,16 @@ Client to router traffic is HTTP POST. Router to display traffic is WebSocket.
   }
 }
 ```
+
+### Update Display Target
+- Method: `PUT`
+- Path: `/admin/displays/{display_id}`
+- Auth: Admin
+
+### Disable Display Target
+- Method: `DELETE`
+- Path: `/admin/displays/{display_id}`
+- Auth: Admin
 
 ### List Logs
 - Method: `GET`

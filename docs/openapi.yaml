@@ -146,7 +146,73 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+  /admin/clients/{client_id}:
+    put:
+      summary: Update client
+      tags: [admin]
+      security:
+        - AdminBearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ClientId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClientUpdate'
+      responses:
+        '200':
+          description: Client updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Client'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      summary: Disable client
+      tags: [admin]
+      security:
+        - AdminBearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ClientId'
+      responses:
+        '200':
+          description: Client disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Client'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /admin/templates:
+    get:
+      summary: List templates (admin)
+      tags: [admin]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      security:
+        - AdminBearerAuth: []
+      responses:
+        '200':
+          description: Templates
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
     post:
       summary: Create template
       tags: [admin]
@@ -173,7 +239,81 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+  /admin/templates/{template_id}:
+    put:
+      summary: Update template
+      tags: [admin]
+      security:
+        - AdminBearerAuth: []
+      parameters:
+        - name: template_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TemplateUpdate'
+      responses:
+        '200':
+          description: Template updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Template'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      summary: Delete template
+      tags: [admin]
+      security:
+        - AdminBearerAuth: []
+      parameters:
+        - name: template_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Template deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Template'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /admin/rules:
+    get:
+      summary: List rules
+      tags: [admin]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      security:
+        - AdminBearerAuth: []
+      responses:
+        '200':
+          description: Rules
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RuleList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
     post:
       summary: Create rule
       tags: [admin]
@@ -200,6 +340,61 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+  /admin/rules/{rule_id}:
+    put:
+      summary: Update rule
+      tags: [admin]
+      security:
+        - AdminBearerAuth: []
+      parameters:
+        - name: rule_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RuleUpdate'
+      responses:
+        '200':
+          description: Rule updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Rule'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      summary: Delete rule
+      tags: [admin]
+      security:
+        - AdminBearerAuth: []
+      parameters:
+        - name: rule_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Rule deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Rule'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /admin/displays:
     get:
       summary: List display targets
@@ -246,6 +441,61 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+  /admin/displays/{display_id}:
+    put:
+      summary: Update display target
+      tags: [admin]
+      security:
+        - AdminBearerAuth: []
+      parameters:
+        - name: display_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DisplayTargetUpdate'
+      responses:
+        '200':
+          description: Display updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DisplayTarget'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      summary: Disable display target
+      tags: [admin]
+      security:
+        - AdminBearerAuth: []
+      parameters:
+        - name: display_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Display disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DisplayTarget'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /admin/logs:
     get:
       summary: List log events
@@ -496,6 +746,21 @@ components:
           format: date-time
         disabled:
           type: boolean
+    ClientUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        contact:
+          type: string
+        payload_types:
+          type: array
+          items:
+            type: string
+        disabled:
+          type: boolean
       example:
         id: cli_123
         name: WeatherBot
@@ -586,6 +851,19 @@ components:
         created_at:
           type: string
           format: date-time
+    TemplateUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        payload_type:
+          type: string
+        template:
+          type: string
+        default_style:
+          type: object
       example:
         id: tpl_abc
         name: Weather Compact
@@ -659,6 +937,47 @@ components:
               type: string
             enabled:
               type: boolean
+    RuleUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        match:
+          type: object
+          properties:
+            client_id:
+              type: string
+            payload_type:
+              type: string
+            tags:
+              type: array
+              items:
+                type: string
+        priority:
+          type: integer
+        display_targets:
+          type: array
+          items:
+            type: string
+        transition:
+          type: string
+        cooldown_seconds:
+          type: integer
+        schedule:
+          type: object
+          properties:
+            timezone:
+              type: string
+            days:
+              type: array
+              items:
+                type: string
+            start:
+              type: string
+            end:
+              type: string
+        enabled:
+          type: boolean
       example:
         id: rule_001
         name: Weather Main
@@ -708,6 +1027,19 @@ components:
               format: date-time
             disabled:
               type: boolean
+    DisplayTargetUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        host:
+          type: string
+        port:
+          type: integer
+        capabilities:
+          type: object
+        disabled:
+          type: boolean
       example:
         id: disp_main
         name: Main Lobby
@@ -776,6 +1108,15 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/DisplayTarget'
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+    RuleList:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Rule'
         meta:
           $ref: '#/components/schemas/ResponseMeta'
     LogEventList:
