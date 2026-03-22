@@ -423,15 +423,41 @@ uvicorn admin.main:app --reload --port 8090
 
 ### Install
 
-1. Clone this repo to `/opt/display-router/DisplayRouter`
-2. Run `scripts/install_display.sh`
-3. Edit `/etc/systemd/system/display-router.service` to set `ROUTER_WS_URL`, `DISPLAY_ID`, and `DISPLAY_SECRET`
+```bash
+curl -fsSL https://raw.githubusercontent.com/mikeygnyc/DisplayRouter/main/scripts/bootstrap_display.sh | bash
+```
 
-The install script:
-- Installs system dependencies (`python3-venv`, `python3-pil`, `cython3`, etc.)
-- Creates a virtualenv at `.venv` and installs `requirements-display.txt`
-- Installs the rgbmatrix Python bindings from source (skip with `DISPLAY_REQUIREMENTS=0`)
-- Installs and enables the systemd service
+The bootstrap script handles everything end-to-end:
+- Preflight checks — Linux, sudo, apt-get, Python 3.10+, Pi detection
+- Installs system dependencies (`git`, `python3-venv`, `python3-pil`, `cython3`, etc.)
+- Clones the repo to `/opt/display-router/DisplayRouter` (or pulls if already present)
+- Creates a virtualenv and installs `requirements-display.txt`
+- Installs the rgbmatrix hardware bindings from source (skip with `DISPLAY_REQUIREMENTS=0`)
+- Writes, enables, and starts the systemd service
+
+Configuration is set via environment variables before piping to bash:
+
+```bash
+ROUTER_WS_URL=ws://192.168.1.10:8000/display/ws \
+DISPLAY_ID=disp_lobby \
+DISPLAY_SECRET=my-secret \
+curl -fsSL https://raw.githubusercontent.com/mikeygnyc/DisplayRouter/main/scripts/bootstrap_display.sh | bash
+```
+
+| Variable | Default | Description |
+|---|---|---|
+| `REPO_URL` | `https://github.com/mikeygnyc/DisplayRouter.git` | Repo to clone |
+| `INSTALL_DIR` | `/opt/display-router` | Install root |
+| `ROUTER_WS_URL` | `ws://localhost:8000/display/ws` | Router WebSocket URL |
+| `DISPLAY_ID` | `disp_main` | Unique display identifier |
+| `DISPLAY_SECRET` | `dev-display-secret` | Shared secret |
+| `DISPLAY_REQUIREMENTS` | `1` | Set to `0` to skip rgbmatrix hardware bindings |
+
+After install, edit `/etc/systemd/system/display-router.service` to change any setting, then:
+
+```bash
+sudo systemctl daemon-reload && sudo systemctl restart display-router
+```
 
 ### rgbmatrix Python bindings
 
@@ -495,7 +521,8 @@ docker compose up --build
 | Script | Description |
 |---|---|
 | `scripts/run_router.sh` | Run router with default environment variables |
-| `scripts/install_display.sh` | Raspberry Pi display server install helper |
+| `scripts/bootstrap_display.sh` | curl-pipeable Raspberry Pi bootstrap installer (dependency checks, clone, venv, systemd) |
+| `scripts/install_display.sh` | Minimal install helper (assumes repo already cloned) |
 | `scripts/display.service` | systemd service unit template |
 
 ---
