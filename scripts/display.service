@@ -1,0 +1,18 @@
+[Unit]
+Description=Display Router - Display Server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/display-router/DisplayRouter
+Environment=ROUTER_WS_URL=ws://router.local:8000/display/ws
+Environment=DISPLAY_ID=disp_main
+Environment=DISPLAY_SECRET=dev-display-secret
+Environment=HEARTBEAT_INTERVAL_SECONDS=10
+ExecStart=/opt/display-router/DisplayRouter/.venv/bin/python /opt/display-router/DisplayRouter/display/client.py
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

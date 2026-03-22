@@ -83,6 +83,28 @@ docker compose up --build
 
 ## Scripts
 - `scripts/run_router.sh` (runs router with default envs)
+- `scripts/install_display.sh` (Raspberry Pi display server install helper)
+
+## Raspberry Pi (Display Server)
+1. Clone this repo to `/opt/display-router/DisplayRouter`
+2. Run `scripts/install_display.sh`
+3. Edit `/etc/systemd/system/display-router.service` for router URL, display ID, and secret
+
+Optional: set `DISPLAY_REQUIREMENTS=0` to skip rgbmatrix install on non-Pi dev machines.
+
+### rgbmatrix
+Repo:
+```text
+https://github.com/hzeller/rpi-rgb-led-matrix/tree/master
+```
+Install prerequisites:
+```bash
+sudo apt-get install python-dev-is-python3 python3-pil cython3
+```
+Install Python bindings:
+```bash
+pip install git+https://github.com/hzeller/rpi-rgb-led-matrix
+```
 
 ## Display Server Config
 - `ROUTER_WS_URL` (default `ws://localhost:8000/display/ws`)
