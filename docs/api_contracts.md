@@ -151,6 +151,16 @@ Client to router traffic is HTTP POST. Router to display traffic is WebSocket.
 }
 ```
 
+### List Logs
+- Method: `GET`
+- Path: `/admin/logs`
+- Auth: Admin
+- Query params:
+  - `level` (optional)
+  - `client_id` (optional)
+  - `display_id` (optional)
+  - `limit` (optional, default 100)
+
 ## Display Server WebSocket
 
 ### Connect

@@ -1,0 +1,14 @@
+*/__pycache__
+**/__pycache__/
+*/*.pyc
+*.egg-info
+dist
+build
+*.egg
+*.log
+*.bak
+*.tmp
+*.swp
+.DS_Store
+.pytest_cache/
+display/__pycache__/*

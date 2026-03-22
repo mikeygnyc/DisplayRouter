@@ -19,6 +19,7 @@ from shared.schemas import (
     TemplateOut,
 )
 from router.services.display_manager import manager as display_manager
+from router.services.logging import log_event
 from router.services.rules import select_rules
 from router.services.templates import render_template
 from shared.utils.ids import make_id
@@ -50,6 +51,12 @@ def create_client(payload: ClientCreate, session: Session = Depends(get_session)
     session.add(client)
     session.commit()
     session.refresh(client)
+    log_event(
+        session,
+        "info",
+        "client_created",
+        {"client_id": client.id, "name": client.name},
+    )
     return ClientCreated(id=client.id, api_key=api_key, created_at=client.created_at)
 
 
@@ -101,6 +108,16 @@ async def submit_payload(
     session.add(stored_payload)
     session.commit()
     metrics["payloads_received"] += 1
+    log_event(
+        session,
+        "info",
+        "payload_received",
+        {
+            "payload_id": stored_payload.id,
+            "client_id": stored_payload.client_id,
+            "payload_type": stored_payload.payload_type,
+        },
+    )
 
     templates = session.exec(select(Template)).all()
     selected_template = None
@@ -144,6 +161,17 @@ async def submit_payload(
                     "expires_at": (stored_payload.received_at + timedelta(seconds=stored_payload.ttl_seconds)).isoformat() + "Z",
                 },
             )
+    if routed_displays:
+        log_event(
+            session,
+            "info",
+            "payload_routed",
+            {
+                "payload_id": stored_payload.id,
+                "routed_displays": routed_displays,
+                "rule_count": len(matched_rules),
+            },
+        )
 
     return PayloadAccepted(payload_id=stored_payload.id, routed_displays=routed_displays, status="accepted")
 

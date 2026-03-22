@@ -5,6 +5,8 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query, WebSocket,
 from router.core.config import settings
 from shared.schemas import DisplayHealth
 from router.services.display_manager import manager as display_manager
+from router.services.logging import log_event
+from router.storage.db import get_session
 from router.core.security import require_display_secret
 
 router = APIRouter()
@@ -33,6 +35,13 @@ async def display_ws(
         return
 
     await display_manager.connect(display_id, websocket)
+    for session in get_session():
+        log_event(
+            session,
+            "info",
+            "display_connected",
+            {"display_id": display_id},
+        )
     try:
         while True:
             message = await websocket.receive_json()
@@ -40,3 +49,10 @@ async def display_ws(
                 continue
     except WebSocketDisconnect:
         await display_manager.disconnect(display_id)
+        for session in get_session():
+            log_event(
+                session,
+                "info",
+                "display_disconnected",
+                {"display_id": display_id},
+            )

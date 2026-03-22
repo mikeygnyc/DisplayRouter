@@ -150,3 +150,16 @@ class PayloadTypeList(Envelope):
 class DisplayHealth(BaseModel):
     status: str
     uptime_seconds: int
+
+
+class LogEventOut(BaseModel):
+    id: str
+    level: str
+    message: str
+    context: Dict[str, Any]
+    created_at: datetime
+
+
+class LogEventList(Envelope):
+    data: List[LogEventOut]
+    meta: ResponseMeta

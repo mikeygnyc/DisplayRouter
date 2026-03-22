@@ -11,6 +11,9 @@ from shared.schemas import (
     DisplayTargetCreate,
     DisplayTargetList,
     DisplayTargetOut,
+    LogEventList,
+    LogEventOut,
+    ResponseMeta,
     RuleCreate,
     RuleOut,
     TemplateCreate,
@@ -19,6 +22,8 @@ from shared.schemas import (
 from shared.utils.ids import make_id
 from shared.utils.pagination import paginate
 from router.core.security import require_admin
+from router.services.logs import list_logs
+from router.services.logging import log_event
 
 router = APIRouter(dependencies=[Depends(require_admin)])
 
@@ -53,6 +58,12 @@ def create_template(
     session.add(template)
     session.commit()
     session.refresh(template)
+    log_event(
+        session,
+        "info",
+        "template_created",
+        {"template_id": template.id, "payload_type": template.payload_type},
+    )
     return TemplateOut(**template.model_dump())
 
 
@@ -78,6 +89,12 @@ def create_rule(payload: RuleCreate, session: Session = Depends(get_session)) ->
     session.add(rule)
     session.commit()
     session.refresh(rule)
+    log_event(
+        session,
+        "info",
+        "rule_created",
+        {"rule_id": rule.id, "priority": rule.priority},
+    )
     return RuleOut(
         id=rule.id,
         name=rule.name,
@@ -124,4 +141,33 @@ def create_display(
     session.add(display)
     session.commit()
     session.refresh(display)
+    log_event(
+        session,
+        "info",
+        "display_created",
+        {"display_id": display.id, "name": display.name},
+    )
     return DisplayTargetOut(**display.model_dump())
+
+
+@router.get("/admin/logs", response_model=LogEventList)
+def list_log_events(
+    level: str | None = Query(default=None),
+    client_id: str | None = Query(default=None),
+    display_id: str | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
+    session: Session = Depends(get_session),
+) -> LogEventList:
+    logs = list_logs(session, level=level, client_id=client_id, display_id=display_id, limit=limit)
+    data = [
+        LogEventOut(
+            id=log.id,
+            level=log.level,
+            message=log.message,
+            context=log.context,
+            created_at=log.created_at,
+        )
+        for log in logs
+    ]
+    meta = ResponseMeta(page=1, page_size=len(data), total=len(data))
+    return LogEventList(data=data, meta=meta)
