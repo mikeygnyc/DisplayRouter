@@ -14,6 +14,13 @@ A system that allows one or more producers of data to feed one or more RGB LED m
 
 4. **Management Interface**: A web-based interface for managing clients, reviewing logs, and setting rules for display priorities and transitions.
 
+## Repository Structure
+- `router/`: Router/Formatter API service (current MVP)
+- `display/`: Display Server (Phase 3)
+- `admin/`: Management Interface (Phase 4)
+- `shared/`: Shared schemas/utilities
+- `docs/`: API contracts and implementation plan
+
 ### Client API
 - Provides endpoints for clients to connect, identify themselves, list their available payload types, and send data.
 - Clients may specify a format or template to use for their data.
@@ -45,6 +52,22 @@ A system that allows one or more producers of data to feed one or more RGB LED m
 ## API Specifications
 - OpenAPI (HTTP): `docs/openapi.yaml`
 - AsyncAPI (WebSocket): `docs/asyncapi.yaml`
+
+## Run Router API
+```bash
+pip install -r requirements.txt
+uvicorn router.main:app --reload
+```
+
+Or via console script after install:
+```bash
+display-router --reload
+```
+
+## Makefile Helpers
+- `make run`
+- `make compile`
+- `make test`
 
 ## How to Render Docs
 OpenAPI (Swagger UI):
