@@ -7,15 +7,18 @@ from typing import Any, Dict
 import websockets
 
 from display.config import settings
-from display.state import last_payload
+from display.render import render_payload, render_to_console
+from display.state import last_frame, last_payload
 
 
 async def handle_message(message: Dict[str, Any]) -> None:
     global last_payload
+    global last_frame
     if message.get("type") == "display_payload":
         last_payload = message
-        # Placeholder for rendering pipeline
-        print(f"[display] received payload {message.get('payload_id')}")
+        frame = render_payload(message)
+        last_frame = frame
+        render_to_console(frame)
 
 
 async def connect_and_listen() -> None:
