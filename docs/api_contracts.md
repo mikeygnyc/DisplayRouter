@@ -7,9 +7,9 @@ The API is split into two surfaces.
 Client to router traffic is HTTP POST. Router to display traffic is WebSocket.
 
 ## Authentication
-1. Client API uses API keys per client.
-2. Admin API uses user accounts with token auth.
-3. Display servers use a shared secret or mTLS on WebSocket connections.
+1. Client API uses `X-API-Key` per client (keys are generated on `POST /api/clients` and stored as salted SHA-256 hashes).
+2. Admin API uses `Authorization: Bearer <ADMIN_TOKEN>` (static token configured on the router).
+3. Display servers use `X-Display-Secret` for `/display/health` and `/display/ws` WebSocket connections.
 
 ## Transport Between Router and Display Server
 1. Default transport: WebSocket push from router to display server.

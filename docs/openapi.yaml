@@ -2,6 +2,11 @@ openapi: 3.0.3
 info:
   title: Display Router API
   version: 0.1.0
+  description: |
+    Authentication:
+    - Client API uses X-API-Key per client.
+    - Admin API uses Authorization: Bearer <ADMIN_TOKEN>.
+    - Display server uses X-Display-Secret for /display/health and /display/ws.
 servers:
   - url: https://router.example.com
 security:
@@ -752,14 +757,17 @@ components:
       type: apiKey
       in: header
       name: X-API-Key
+      description: Client API key returned from /api/clients and sent as X-API-Key.
     AdminBearerAuth:
       type: http
       scheme: bearer
-      bearerFormat: JWT
+      bearerFormat: token
+      description: Admin bearer token configured via ADMIN_TOKEN.
     DisplaySecret:
       type: apiKey
       in: header
       name: X-Display-Secret
+      description: Shared display secret configured via DISPLAY_SECRET.
   parameters:
     ClientId:
       name: client_id

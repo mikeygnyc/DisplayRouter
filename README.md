@@ -91,7 +91,12 @@ Client payload -> template -> render payload -> display/sim output
 ## API Specifications
 - OpenAPI (HTTP): `docs/openapi.yaml`
 - AsyncAPI (WebSocket): `docs/asyncapi.yaml`
-GitHub Pages renders both specs from `docs/` (see repo Pages URL).
+GitHub Pages renders both specs from `docs/`: `https://mikeygnyc.github.io/DisplayRouter/`.
+
+## Authentication
+- Admin API: `Authorization: Bearer <ADMIN_TOKEN>` (set `ADMIN_TOKEN` on the router, paste into Admin UI token box).
+- Client API: `X-API-Key: <client_api_key>` (generated on `POST /api/clients`, stored as a salted SHA-256 hash using `API_KEY_SALT`).
+- Display server: `X-Display-Secret: <DISPLAY_SECRET>` for `/display/health` and `/display/ws` WebSocket connections.
 
 ## Run Router API
 Via console script after install:

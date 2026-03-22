@@ -62,6 +62,14 @@ jobs:
           </html>
           HTML
           npx @asyncapi/cli generate from file docs/asyncapi.yaml @asyncapi/html-template -o public/asyncapi --force-write --disable-warning
+          if [ ! -f public/asyncapi/index.html ] && [ -f public/asyncapi.html ]; then
+            mkdir -p public/asyncapi
+            mv public/asyncapi.html public/asyncapi/index.html
+          fi
+          if [ ! -f public/asyncapi/index.html ]; then
+            echo "AsyncAPI index.html not found after generation"
+            exit 1
+          fi
           cp -R docs/site/* public/
 
       - name: Upload Pages artifact
