@@ -85,6 +85,14 @@ docker compose up --build
 - `scripts/run_router.sh` (runs router with default envs)
 - `scripts/install_display.sh` (Raspberry Pi display server install helper)
 
+## Admin UI
+Run the admin UI shell:
+```bash
+uvicorn admin.main:app --reload --port 8090
+```
+Use the token input at the top of the page to enable live monitoring calls.
+Displays and logs render inline, and you can embed the simulator playground by providing its URL.
+
 ## Raspberry Pi (Display Server)
 1. Clone this repo to `/opt/display-router/DisplayRouter`
 2. Run `scripts/install_display.sh`
