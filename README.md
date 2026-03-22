@@ -89,9 +89,8 @@ Client payload -> template -> render payload -> display/sim output
 - Run tests via `make test`.
 
 ## API Specifications
-- OpenAPI (HTTP): `docs/openapi.yaml`
-- AsyncAPI (WebSocket): `docs/asyncapi.yaml`
-GitHub Pages renders both specs from `docs/`: `https://mikeygnyc.github.io/DisplayRouter/`.
+- OpenAPI: https://mikeygnyc.github.io/DisplayRouter/swagger/
+- AsyncAPI: https://mikeygnyc.github.io/DisplayRouter/asyncapi/
 
 ## Authentication
 - Admin API: `Authorization: Bearer <ADMIN_TOKEN>` (set `ADMIN_TOKEN` on the router, paste into Admin UI token box).
