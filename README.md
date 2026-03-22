@@ -13,7 +13,7 @@ Display Router connects data producers to RGB LED matrix displays through a rout
 4. **Management Interface**: Admin UI for monitoring, CRUD, and broadcasts.
 
 ## Repository Structure
-- `router/`: Router/Formatter API service (current MVP)
+- `router/`: Router/Formatter API service
 - `display/`: Display Server
 - `admin/`: Management Interface
 - `shared/`: Shared schemas/utilities
@@ -91,6 +91,7 @@ Client payload -> template -> render payload -> display/sim output
 ## API Specifications
 - OpenAPI (HTTP): `docs/openapi.yaml`
 - AsyncAPI (WebSocket): `docs/asyncapi.yaml`
+GitHub Pages renders both specs from `docs/` (see repo Pages URL).
 
 ## Run Router API
 Via console script after install:

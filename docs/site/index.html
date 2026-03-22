@@ -1,0 +1,66 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Display Router API Docs</title>
+    <style>
+      :root {
+        --bg: #f4f1ea;
+        --panel: #fff7e6;
+        --ink: #2b2a28;
+        --accent: #c45b12;
+      }
+      body {
+        margin: 0;
+        font-family: "IBM Plex Serif", Georgia, "Times New Roman", serif;
+        background: var(--bg);
+        color: var(--ink);
+      }
+      header {
+        padding: 24px 28px;
+        border-bottom: 4px solid var(--accent);
+        background: #efe7d8;
+      }
+      h1 {
+        margin: 0;
+        font-size: 26px;
+        letter-spacing: 0.5px;
+      }
+      main {
+        padding: 24px;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid #e2d6c6;
+        padding: 16px;
+        margin-bottom: 16px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+      }
+      a {
+        color: var(--accent);
+        font-weight: 600;
+        text-decoration: none;
+      }
+      .muted {
+        color: #6b6358;
+        font-size: 13px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Display Router API Docs</h1>
+      <div class="muted">OpenAPI + AsyncAPI</div>
+    </header>
+    <main>
+      <div class="card">
+        <h2>OpenAPI</h2>
+        <p><a href="./swagger/index.html">Swagger UI</a></p>
+      </div>
+      <div class="card">
+        <h2>AsyncAPI</h2>
+        <p><a href="./asyncapi/index.html">AsyncAPI HTML</a></p>
+      </div>
+    </main>
+  </body>
+</html>

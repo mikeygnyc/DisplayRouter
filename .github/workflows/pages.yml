@@ -1,0 +1,81 @@
+name: Docs Pages
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "docs/**"
+      - ".github/workflows/pages.yml"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install docs tooling
+        run: |
+          npm install --no-save swagger-ui-dist @asyncapi/generator
+
+      - name: Build docs site
+        run: |
+          rm -rf public
+          mkdir -p public/swagger public/asyncapi
+          cp -R node_modules/swagger-ui-dist/* public/swagger/
+          cp docs/openapi.yaml public/openapi.yaml
+          cat > public/swagger/index.html <<'HTML'
+          <!doctype html>
+          <html>
+            <head>
+              <meta charset="utf-8" />
+              <title>Display Router OpenAPI</title>
+              <link rel="stylesheet" href="./swagger-ui.css" />
+            </head>
+            <body>
+              <div id="swagger-ui"></div>
+              <script src="./swagger-ui-bundle.js"></script>
+              <script src="./swagger-ui-standalone-preset.js"></script>
+              <script>
+                window.ui = SwaggerUIBundle({
+                  url: "../openapi.yaml",
+                  dom_id: "#swagger-ui",
+                  presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
+                  layout: "BaseLayout"
+                });
+              </script>
+            </body>
+          </html>
+          HTML
+          npx @asyncapi/generator docs/asyncapi.yaml @asyncapi/html-template -o public/asyncapi
+          cp -R docs/site/* public/
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
