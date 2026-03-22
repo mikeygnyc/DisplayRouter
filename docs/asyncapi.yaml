@@ -1,7 +1,19 @@
 asyncapi: 2.6.0
+id: urn:display-router:ws
+defaultContentType: application/json
+tags:
+  - name: display
+    description: Display server connections and payloads
+  - name: router
+    description: Router-originated events
 info:
   title: Display Router WebSocket API
   version: 0.1.0
+  description: WebSocket contract between router and display servers.
+  contact:
+    name: Display Router Team
+  license:
+    name: MIT
 servers:
   router:
     url: wss://router.example.com/display/ws
@@ -11,20 +23,27 @@ channels:
   /display/ws:
     subscribe:
       summary: Router sends display payloads to display servers
+      operationId: receiveDisplayPayload
+      security:
+        - DisplaySecret: []
       message:
         $ref: '#/components/messages/DisplayPayload'
     publish:
       summary: Display server sends heartbeat to router (interval configurable)
+      operationId: sendHeartbeat
+      security:
+        - DisplaySecret: []
       message:
         $ref: '#/components/messages/Heartbeat'
 components:
   securitySchemes:
     DisplaySecret:
-      type: apiKey
-      in: header
-      name: X-Display-Secret
+      type: http
+      scheme: bearer
+      description: Provide X-Display-Secret as a bearer token value.
   messages:
     DisplayPayload:
+      messageId: display_payload
       name: display_payload
       payload:
         type: object
@@ -52,9 +71,9 @@ components:
                 type: string
               duration_ms:
                 type: integer
-            expires_at:
-              type: string
-              format: date-time
+          expires_at:
+            type: string
+            format: date-time
       examples:
         - payload:
             type: display_payload
@@ -72,6 +91,7 @@ components:
               duration_ms: 500
             expires_at: '2026-03-22T12:02:00Z'
     Heartbeat:
+      messageId: heartbeat
       name: heartbeat
       payload:
         type: object
@@ -81,12 +101,10 @@ components:
             enum: [heartbeat]
           display_id:
             type: string
-            uptime_seconds:
-              type: integer
+          uptime_seconds:
+            type: integer
       examples:
         - payload:
             type: heartbeat
             display_id: disp_main
             uptime_seconds: 12345
-security:
-  - DisplaySecret: []
