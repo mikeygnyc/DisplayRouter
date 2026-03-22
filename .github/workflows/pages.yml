@@ -63,7 +63,7 @@ jobs:
             </body>
           </html>
           HTML
-          npx @asyncapi/cli generate fromTemplate docs/asyncapi.yaml @asyncapi/html-template -o public/asyncapi --force-write --disable-warning
+          npx @asyncapi/cli generate fromTemplate docs/asyncapi.yaml @asyncapi/html-template -o public/asyncapi --force-write
           if [ ! -f public/asyncapi/index.html ] && [ -f public/asyncapi.html ]; then
             mkdir -p public/asyncapi
             mv public/asyncapi.html public/asyncapi/index.html
