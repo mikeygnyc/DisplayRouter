@@ -30,7 +30,7 @@ jobs:
 
       - name: Install docs tooling
         run: |
-          npm install --no-save swagger-ui-dist @asyncapi/generator
+          npm install --no-save swagger-ui-dist @asyncapi/cli
 
       - name: Build docs site
         run: |
@@ -61,7 +61,7 @@ jobs:
             </body>
           </html>
           HTML
-          npx @asyncapi/generator docs/asyncapi.yaml @asyncapi/html-template -o public/asyncapi
+          npx @asyncapi/cli generate from file docs/asyncapi.yaml @asyncapi/html-template -o public/asyncapi --force-write --disable-warning
           cp -R docs/site/* public/
 
       - name: Upload Pages artifact
