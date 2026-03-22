@@ -1,10 +1,9 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=68", "setuptools-scm[toml]>=8", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "display-router"
-version = "0.1.0"
 description = "Router/formatter system for RGB LED matrix displays"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -12,6 +11,7 @@ license = { text = "Proprietary" }
 authors = [
   { name = "Display Router Team" }
 ]
+dynamic = ["version"]
 dependencies = [
   "fastapi>=0.111.0",
   "uvicorn[standard]>=0.30.0",
@@ -33,3 +33,7 @@ include = ["router*", "shared*", "display*", "admin*", "rgbmatrix*"]
 
 [tool.setuptools.package-data]
 admin = ["templates/*.html", "static/*.css", "static/*.js"]
+
+[tool.setuptools_scm]
+version_scheme = "guess-next-dev"
+local_scheme = "no-local-version"

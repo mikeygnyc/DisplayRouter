@@ -1,4 +1,5 @@
 # Display Router
+[![CI](https://github.com/mikeygnyc/DisplayRouter/actions/workflows/ci.yml/badge.svg)](https://github.com/mikeygnyc/DisplayRouter/actions/workflows/ci.yml)
 
 ## Summary
 
@@ -264,3 +265,8 @@ npx @asyncapi/generator docs/asyncapi.yaml @asyncapi/html-template -o docs/async
 
 ## Notes
 The system supports command streams (`data.commands`), full pixel buffers, and simulator embeds that use the same `/sim` interface as the display server.
+
+## Versioning
+Versions are derived from git tags via `setuptools_scm`.
+- Tag format: `vX.Y.Z` (e.g., `v1.2.3`)
+- CI/release workflow triggers on tag pushes.
