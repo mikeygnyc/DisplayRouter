@@ -134,6 +134,19 @@ Run a simple web UI:
 ```bash
 uvicorn display.sim_ui:app --reload --port 8083
 ```
+
+### Simulator Playground
+Interactive payload playground:
+```bash
+uvicorn display.sim_playground:app --reload --port 8084
+```
+Includes preset buttons and auto-refresh preview toggle.
+Use **Save Preset** (stored in browser localStorage) and **Export JSON** for reuse in templates.
+Use **Import JSON** to load a saved preset file.
+Imported presets are saved automatically using the filename.
+
+### Management UI Notes
+When the management UI arrives, we can embed the simulator and a real-time viewer that uses the same `/sim` interface.
 Payload style options for simulator:
 - `style.color`: single color (e.g., `#ffcc00`)
 - `style.colors`: per-character colors array (length must match text)
