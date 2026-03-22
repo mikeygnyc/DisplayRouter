@@ -1,277 +1,544 @@
 # Display Router
 [![CI](https://github.com/mikeygnyc/DisplayRouter/actions/workflows/ci.yml/badge.svg)](https://github.com/mikeygnyc/DisplayRouter/actions/workflows/ci.yml)
 
-## Summary
+Display Router connects data producers to RGB LED matrix displays through a router/formatter that applies templates, rules, and transitions. Producers submit payloads over HTTP; the router matches rules, renders templates, and pushes rendered frames to display servers over WebSocket.
 
-Display Router connects data producers to RGB LED matrix displays through a router/formatter that applies templates, rules, and transitions.
+## System Architecture
 
-## Components
+```
+Producers ──► Client API ──► Router/Formatter ──► Display Server ──► RGB Matrix
+                                   │                    │
+                                   │                    └──► Simulator (/sim)
+                                   │
+                                   └──► Admin UI (monitoring + CRUD + broadcast)
+```
 
-1. **Client API**: Allows producers to register and send payloads.
-2. **Router/Formatter Server**: Applies rules/templates and routes to displays.
-3. **Display Server**: Renders payloads to `rgbmatrix`, console, or simulator output.
-4. **Management Interface**: Admin UI for monitoring, CRUD, and broadcasts.
+### Components
 
-## Repository Structure
-- `router/`: Router/Formatter API service
-- `display/`: Display Server
-- `admin/`: Management Interface
-- `shared/`: Shared schemas/utilities
-- `docs/`: API contracts and implementation plan
+| Component | Path | Description |
+|---|---|---|
+| Router API | `router/` | FastAPI service — client ingestion, rule engine, template renderer, WebSocket push |
+| Display Server | `display/` | WebSocket client — renders to rgbmatrix, console, or simulator |
+| Admin UI | `admin/` | HTML/JS management interface — CRUD, monitoring, broadcasts |
+| Shared | `shared/` | Pydantic schemas and utilities shared across services |
+| rgbmatrix emulator | `rgbmatrix/` | Drop-in Python emulator for running without hardware |
+| Config examples | `config/` | JSON and TOML config file examples |
+| Docs | `docs/` | OpenAPI/AsyncAPI specs and implementation notes |
 
-### Client API
-- Provides endpoints for clients to connect, identify themselves, list their available payload types, and send data.
-- Clients may specify a format or template to use for their data.
+### Data Flow
 
-### Router/Formatter Server
-- Receives data from clients, applies formatting rules, and routes the data to the appropriate display based on priority rules.
-- Generates any transition data needed for the display servers to render.
+```
+Client payload ──► rule matching ──► template render ──► WebSocket push ──► display/sim output
+```
 
-### Display Server
-- Listens for incoming connections from router/formatter.
-- Renders messages on the RGB LED matrix display based on received payloads.
+1. A producer `POST /api/payloads` with a `client_id`, `payload_type`, and `data`.
+2. The router matches enabled rules by `client_id`, `payload_type`, tags, and schedule.
+3. Matched rules determine which display targets receive the payload and which transition to use.
+4. The router renders the payload through a Jinja2 template (or passes raw commands/pixels).
+5. The rendered frame is pushed over WebSocket to each connected display server.
+6. The display server applies the transition and renders to the matrix, console, or simulator.
 
-### Management Interface
-- Allows administrators to manage clients, set display templates, and define rules for how data is displayed including priority to certain sources, transition types between payload (instant, delayed, etc).
-- Provides logging and monitoring capabilities for the system.
+---
 
 ## Quickstart
-Run the router:
+
+### Prerequisites
+
+- Python 3.10+
+- `pip install -r requirements.txt`
+
+### Run everything locally
+
 ```bash
-pip install -r requirements.txt
+# Router API (port 8000)
 uvicorn router.main:app --reload
-```
-Run the admin UI:
-```bash
+
+# Admin UI (port 8090)
 uvicorn admin.main:app --reload --port 8090
-```
-Run a display client in simulator mode:
-```bash
+
+# Display client in simulator mode
 DISPLAY_RENDERER=sim python -m display.main
-```
-Run simulator UI and playground:
-```bash
+
+# Simulator JSON endpoint (port 8082)
+uvicorn display.sim_server:app --reload --port 8082
+
+# Simulator viewer UI (port 8083)
 uvicorn display.sim_ui:app --reload --port 8083
+
+# Simulator playground — editor + live preview (port 8084)
 uvicorn display.sim_playground:app --reload --port 8084
 ```
 
-### Configuration At A Glance
-- Router config file: `ROUTER_CONFIG_FILE=./config/router.json`
-- Display config file: `DISPLAY_CONFIG_FILE=./config/display.json`
-- Simulator render mode: `DISPLAY_RENDERER=sim`
-- Admin token: set `ADMIN_TOKEN` on the router and paste it into the Admin UI token box
+### Via console script (after `pip install -e .`)
 
-### Ports
-- Router API (`/api`, `/admin`): `http://localhost:8000`
-- Admin UI (HTML shell): `http://localhost:8090`
-- Simulator server (`/sim` JSON): `http://localhost:8082`
-- Simulator UI (viewer): `http://localhost:8083`
-- Simulator playground (editor + preview): `http://localhost:8084`
-
-### System Diagram
-```text
-Producers -> Client API -> Router/Formatter -> Display Server -> RGB Matrix
-                               |                   |
-                               |                   +-> Simulator (/sim)
-                               |
-                               +-> Admin UI (monitoring + CRUD + broadcast)
-```
-
-### Data Flow Example
-```text
-Client payload -> template -> render payload -> display/sim output
-```
-
-## Testing
-
-- Unit tests cover router rules, templates, display rendering, rgbmatrix compatibility, and command streams.
-- Integration tests validate router-to-display flows and mock matrix rendering.
-- Run tests via `make test`.
-
-## API Specifications
-- OpenAPI: https://mikeygnyc.github.io/DisplayRouter/swagger/
-- AsyncAPI: https://mikeygnyc.github.io/DisplayRouter/asyncapi/
-
-## Authentication
-- Admin API: `Authorization: Bearer <ADMIN_TOKEN>` (set `ADMIN_TOKEN` on the router, paste into Admin UI token box).
-- Client API: `X-API-Key: <client_api_key>` (generated on `POST /api/clients`, stored as a salted SHA-256 hash using `API_KEY_SALT`).
-- Display server: `X-Display-Secret: <DISPLAY_SECRET>` for `/display/health` and `/display/ws` WebSocket connections.
-
-## Run Router API
-Via console script after install:
 ```bash
 display-router --reload
 ```
-Optional config file:
-```bash
-ROUTER_CONFIG_FILE=./config/router.json uvicorn router.main:app --reload
-```
 
-## Makefile Helpers
-- `make run`
-- `make compile`
-- `make test`
+### Via Docker Compose
 
-## Docker
-Build and run the router:
-```bash
-docker build -t display-router .
-docker run -p 8000:8000 display-router
-```
-
-Or with compose:
 ```bash
 docker compose up --build
 ```
 
-## Scripts
-- `scripts/run_router.sh` (runs router with default envs)
-- `scripts/install_display.sh` (Raspberry Pi display server install helper)
+This starts: `router` (8000), `sim-server` (8082), `sim-ui` (8083), `sim-playground` (8084), and a `display` client in simulator mode.
 
-## Admin UI
-Use the token input at the top of the page to enable live monitoring calls.
-Displays and logs render inline, and you can embed the simulator playground by providing its URL.
+### Via Makefile
 
-## Raspberry Pi (Display Server)
-1. Clone this repo to `/opt/display-router/DisplayRouter`
-2. Run `scripts/install_display.sh`
-3. Edit `/etc/systemd/system/display-router.service` for router URL, display ID, and secret
-
-Optional: set `DISPLAY_REQUIREMENTS=0` to skip rgbmatrix install on non-Pi dev machines.
-For simulator-only runs, you can skip rgbmatrix entirely and set `DISPLAY_RENDERER=sim`.
-
-### rgbmatrix
-Repo:
-```text
-https://github.com/hzeller/rpi-rgb-led-matrix/tree/master
-```
-Install prerequisites:
 ```bash
-sudo apt-get install python-dev-is-python3 python3-pil cython3
+make run      # uvicorn router.main:app --reload
+make test     # pytest
+make compile  # python -m compileall router shared display admin
 ```
-Install Python bindings:
+
+### Release
+
 ```bash
-pip install git+https://github.com/hzeller/rpi-rgb-led-matrix
+make release VERSION=1.2.3        # tags and pushes vVERSION
+make release-dry VERSION=1.2.3    # dry run
 ```
 
-## Display Server Config
-Config file support (JSON or TOML):
-- `DISPLAY_CONFIG_FILE` or `CONFIG_FILE` to point at a config file.
-- Precedence: defaults -> config file -> env vars.
+---
 
-- `ROUTER_WS_URL` (default `ws://localhost:8000/display/ws`)
-- `DISPLAY_ID` (default `disp_main`)
-- `DISPLAY_SECRET` (default `dev-display-secret`)
-- `HEARTBEAT_INTERVAL_SECONDS` (default `10`)
-- `DISPLAY_RENDERER` (`console`, `rgbmatrix`, or `sim`, default `console`)
-- `MATRIX_WIDTH` (default `64`)
-- `MATRIX_HEIGHT` (default `32`)
-- `MATRIX_CHAIN` (default `1`)
-- `MATRIX_PARALLEL` (default `1`)
-- `MATRIX_BRIGHTNESS` (default `60`)
-- `MATRIX_GPIO_SLOWDOWN` (default `2`)
-- `MATRIX_HARDWARE_MAPPING` (default `regular`)
-- `MATRIX_FONT_PATH` (default `/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf`)
-- `MATRIX_FONT_SIZE` (default `10`)
+## Ports
 
-Example:
-```bash
-DISPLAY_CONFIG_FILE=./config/display.json python -m display.main
+| Service | URL |
+|---|---|
+| Router API (`/api`, `/admin`, `/display`) | `http://localhost:8000` |
+| Admin UI | `http://localhost:8090` |
+| Simulator JSON endpoint (`/sim`) | `http://localhost:8082` |
+| Simulator viewer | `http://localhost:8083` |
+| Simulator playground | `http://localhost:8084` |
+
+---
+
+## Authentication
+
+| Surface | Header | Value |
+|---|---|---|
+| Admin API | `Authorization` | `Bearer <ADMIN_TOKEN>` |
+| Client API | `X-API-Key` | `<client_api_key>` |
+| Display WebSocket / health | `X-Display-Secret` | `<DISPLAY_SECRET>` |
+
+- `ADMIN_TOKEN` is set on the router and pasted into the Admin UI token box.
+- Client API keys are generated on `POST /api/clients` and stored as salted SHA-256 hashes (`API_KEY_SALT`).
+- Display secret authenticates `/display/health` and the `/display/ws` WebSocket upgrade.
+
+---
+
+## Configuration
+
+Config precedence: **defaults → config file → environment variables**
+
+### Router (`config/router.json` or `config/router.toml`)
+
+Point to a config file with `ROUTER_CONFIG_FILE` or `CONFIG_FILE`.
+
+| Key / Env Var | Default | Description |
+|---|---|---|
+| `DATABASE_URL` | `sqlite:///./display_router.db` | SQLAlchemy database URL |
+| `ADMIN_TOKEN` | `dev-admin-token` | Static admin bearer token |
+| `API_KEY_SALT` | `dev-salt` | Salt for client API key hashing |
+| `DISPLAY_SECRET` | `dev-display-secret` | Shared secret for display connections |
+| `LOG_RETENTION_DAYS` | `30` | Days to retain log events (`none` = forever) |
+
+Example `config/router.json`:
+```json
+{
+  "database_url": "sqlite:///./display_router.db",
+  "admin_token": "dev-admin-token",
+  "api_key_salt": "dev-salt",
+  "display_secret": "dev-display-secret",
+  "log_retention_days": 30
+}
 ```
 
-## Router Config
-Config file support (JSON or TOML):
-- `ROUTER_CONFIG_FILE` or `CONFIG_FILE` to point at a config file.
-- Precedence: defaults -> config file -> env vars.
+### Display Server (`config/display.json` or `config/display.toml`)
 
-Example:
-```bash
-ROUTER_CONFIG_FILE=./config/router.json uvicorn router.main:app --reload
+Point to a config file with `DISPLAY_CONFIG_FILE` or `CONFIG_FILE`.
+
+| Key / Env Var | Default | Description |
+|---|---|---|
+| `ROUTER_WS_URL` | `ws://localhost:8000/display/ws` | Router WebSocket URL |
+| `DISPLAY_ID` | `disp_main` | Unique display identifier |
+| `DISPLAY_SECRET` | `dev-display-secret` | Shared secret |
+| `HEARTBEAT_INTERVAL_SECONDS` | `10` | Heartbeat interval |
+| `DISPLAY_RENDERER` | `console` | `console`, `rgbmatrix`, or `sim` |
+| `MATRIX_WIDTH` | `64` | Matrix width in pixels |
+| `MATRIX_HEIGHT` | `32` | Matrix height in pixels |
+| `MATRIX_CHAIN` | `1` | Chained panel count |
+| `MATRIX_PARALLEL` | `1` | Parallel chain count |
+| `MATRIX_BRIGHTNESS` | `60` | Brightness (0–100) |
+| `MATRIX_GPIO_SLOWDOWN` | `2` | GPIO slowdown for Pi |
+| `MATRIX_HARDWARE_MAPPING` | `regular` | rgbmatrix hardware mapping |
+| `MATRIX_FONT_PATH` | `/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf` | Font path |
+| `MATRIX_FONT_SIZE` | `10` | Font size |
+
+---
+
+## API Reference
+
+Full specs: [OpenAPI](https://mikeygnyc.github.io/DisplayRouter/swagger/) · [AsyncAPI](https://mikeygnyc.github.io/DisplayRouter/asyncapi/)
+
+### Client API
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `POST` | `/api/clients` | Admin | Register a new client, returns `api_key` |
+| `GET` | `/api/clients/{client_id}` | Admin | Get client details |
+| `GET` | `/api/clients/{client_id}/payload-types` | Client or Admin | List registered payload types |
+| `POST` | `/api/payloads` | Client | Submit a payload for routing |
+| `GET` | `/api/templates` | Client or Admin | List templates |
+
+#### Submit Payload
+
+```http
+POST /api/payloads
+X-API-Key: <client_api_key>
+Content-Type: application/json
+
+{
+  "client_id": "cli_abc123",
+  "payload_type": "alert",
+  "priority": 10,
+  "ttl_seconds": 60,
+  "data": { "text": "Hello World" },
+  "tags": ["urgent"]
+}
 ```
+
+Response:
+```json
+{
+  "payload_id": "pld_xyz",
+  "routed_displays": ["disp_main"],
+  "status": "accepted"
+}
+```
+
+`data` can also contain:
+- `commands` — rgbmatrix command stream (see [Command Stream](#command-stream))
+- `pixels` — full pixel buffer `{ "width": 64, "height": 32, "pixels": [[[r,g,b], ...]] }`
+
+### Admin API
+
+All admin endpoints require `Authorization: Bearer <ADMIN_TOKEN>`.
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/admin/clients` | List clients |
+| `PUT` | `/admin/clients/{id}` | Update client |
+| `DELETE` | `/admin/clients/{id}` | Disable client |
+| `POST` | `/admin/templates` | Create template |
+| `GET` | `/admin/templates` | List templates |
+| `PUT` | `/admin/templates/{id}` | Update template |
+| `DELETE` | `/admin/templates/{id}` | Delete template |
+| `POST` | `/admin/rules` | Create routing rule |
+| `GET` | `/admin/rules` | List rules |
+| `PUT` | `/admin/rules/{id}` | Update rule |
+| `DELETE` | `/admin/rules/{id}` | Delete rule |
+| `POST` | `/admin/displays` | Register display target |
+| `GET` | `/admin/displays` | List display targets |
+| `PUT` | `/admin/displays/{id}` | Update display target |
+| `DELETE` | `/admin/displays/{id}` | Disable display target |
+| `GET` | `/admin/logs` | List log events (filter by `level`, `client_id`, `display_id`, `limit`) |
+| `GET` | `/admin/logs/{id}` | Get log event |
+| `POST` | `/admin/logs/{id}/replay` | Replay a `payload_received` log event (`?dry_run=true`) |
+| `GET` | `/admin/monitoring` | Live display connection status and payload metrics |
+| `POST` | `/admin/broadcasts/text` | Broadcast text to all (or selected) displays |
+| `POST` | `/admin/broadcasts/commands` | Broadcast command stream to all (or selected) displays |
+
+### Display Server WebSocket
+
+```
+WS /display/ws?display_id=<id>
+X-Display-Secret: <DISPLAY_SECRET>
+```
+
+Router → Display (push):
+```json
+{
+  "type": "display_payload",
+  "display_id": "disp_main",
+  "payload_id": "pld_xyz",
+  "render": { "template": "{{text}}", "resolved": { "text": "Hello" }, "style": { "color": "#ffcc00" } },
+  "transition": { "type": "slide", "duration_ms": 0 },
+  "expires_at": "2025-01-01T00:01:00Z"
+}
+```
+
+Display → Router (heartbeat):
+```json
+{ "type": "heartbeat", "display_id": "disp_main", "uptime_seconds": 120 }
+```
+
+### Router Health & Metrics
+
+```
+GET /health   → { "status": "ok", "time": "..." }
+GET /metrics  → { "payloads_received": 42 }
+```
+
+---
+
+## Rules Engine
+
+Rules match incoming payloads and determine which displays receive them.
+
+```json
+{
+  "name": "Urgent alerts to lobby",
+  "match": {
+    "client_id": "cli_abc123",
+    "payload_type": "alert",
+    "tags": ["urgent"]
+  },
+  "priority": 100,
+  "display_targets": ["disp_main"],
+  "transition": "slide",
+  "cooldown_seconds": 5,
+  "schedule": {
+    "timezone": "America/New_York",
+    "days": ["mon", "tue", "wed", "thu", "fri"],
+    "start": "08:00",
+    "end": "18:00"
+  }
+}
+```
+
+- Rules are matched by `client_id`, `payload_type`, and `tags` (all specified fields must match).
+- Multiple rules can match; all are applied in descending priority order.
+- `schedule` restricts when a rule is active by timezone, days of week, and time window.
+- `cooldown_seconds` prevents a rule from firing more than once per interval.
+- `transition` options: `instant`, `slide`, `fade`, `delay`.
+
+---
+
+## Templates
+
+Templates use Jinja2 syntax and are matched by `payload_type`.
+
+```json
+{
+  "name": "Alert template",
+  "payload_type": "alert",
+  "template": "⚠ {{ text }}",
+  "default_style": {
+    "color": "#ff0000",
+    "scroll_ms_per_px": 20
+  }
+}
+```
+
+Clients can also specify a `template_id` directly in the payload to bypass auto-matching.
+
+Style options passed to the display/simulator:
+- `style.color` — single hex color (e.g. `#ffcc00`)
+- `style.colors` — per-character color array (length must match text)
+- `style.scroll_ms_per_px` — scroll speed in ms per pixel (default `15`)
+
+---
+
+## Command Stream
+
+Send raw rgbmatrix operations via `data.commands` in a payload or broadcast. References use `@id` to refer to objects created by earlier commands.
+
+```json
+{
+  "commands": [
+    { "op": "RGBMatrixOptions", "id": "opts" },
+    { "op": "setattr", "target": "@opts", "attr": "rows", "value": 32 },
+    { "op": "RGBMatrix", "id": "matrix", "kwargs": { "options": "@opts" } },
+    { "op": "CreateFrameCanvas", "id": "canvas", "target": "@matrix" },
+    { "op": "Fill", "target": "@canvas", "args": [0, 0, 0] },
+    { "op": "Color", "id": "red", "args": [255, 0, 0] },
+    { "op": "DrawText", "args": ["@canvas", "@font", 0, 10, "@red", "HELLO"] },
+    { "op": "SwapOnVSync", "target": "@matrix", "args": ["@canvas"] }
+  ]
+}
+```
+
+Supported ops: `RGBMatrixOptions`, `RGBMatrix`, `FrameCanvas`, `CreateFrameCanvas`, `SwapOnVSync`, `Fill`, `Clear`, `SetPixel`, `SetImage`, `SetPixelsPillow`, `setattr`, `Color`, `Font`, `LoadFont`, `DrawText`, `DrawCircle`, `DrawLine`.
+
+Sample files: `display/sample_commands.json`, `display/sample_pixels.json`.
+
+---
 
 ## Display Simulator
-Run a simple simulator web endpoint:
+
+The simulator lets you preview display output without hardware.
+
 ```bash
+# Start the display client in sim mode
+DISPLAY_RENDERER=sim python -m display.main
+
+# Simulator JSON endpoint — serves latest frame at GET /sim
 uvicorn display.sim_server:app --reload --port 8082
-```
-Use `DISPLAY_RENDERER=sim` to print compact frames in the client.
 
-### Simulator UI
-Run a simple web UI:
-```bash
+# Viewer UI — polls /sim and renders in browser
 uvicorn display.sim_ui:app --reload --port 8083
-```
 
-### Simulator Playground
-Interactive payload playground:
-```bash
+# Playground — interactive payload editor with live preview
 uvicorn display.sim_playground:app --reload --port 8084
 ```
-Includes preset buttons and auto-refresh preview toggle.
-Use **Save Preset** (stored in browser localStorage) and **Export JSON** for reuse in templates.
-Use **Import JSON** to load a saved preset file.
-Imported presets are saved automatically using the filename.
 
-## rgbmatrix Emulator
-This repo includes a drop-in `rgbmatrix` Python emulator (based on commit `5225746` of `rpi-rgb-led-matrix`) that can run scripts without hardware.
+Playground features:
+- Preset buttons with **Save Preset** (browser localStorage) and **Export/Import JSON**
+- Auto-refresh preview toggle
+- Imported presets are saved automatically using the filename
 
-Optional client push:
-- Set `RGBMATRIX_EMULATOR_PUSH_URL` to a JSON endpoint (e.g. the simulator playground `http://localhost:8084/push`) to receive frames.
-The payload can include full pixel buffers:
+### rgbmatrix Emulator
+
+`rgbmatrix/` is a drop-in Python emulator (based on commit `5225746` of `rpi-rgb-led-matrix`) that runs scripts without hardware.
+
+Set `RGBMATRIX_EMULATOR_PUSH_URL` to push frames to an external endpoint (e.g. `http://localhost:8084/push`):
+
 ```json
 {
   "width": 64,
   "height": 32,
-  "pixels": [[[0,0,0], ...]]
+  "pixels": [[[0, 0, 0], "..."]]
 }
 ```
 
-### Command Stream Payload
-You can send a command stream in `data.commands` via `/api/payloads`. Example:
-```json
-{
-  "commands": [
-    {"op":"RGBMatrixOptions","id":"opts"},
-    {"op":"setattr","target":"@opts","attr":"rows","value":32},
-    {"op":"RGBMatrix","id":"matrix","kwargs":{"options":"@opts"}},
-    {"op":"CreateFrameCanvas","id":"canvas","target":"@matrix"},
-    {"op":"Fill","target":"@canvas","args":[0,0,0]},
-    {"op":"Color","id":"red","args":[255,0,0]},
-    {"op":"DrawText","args":["@canvas","@font",0,10,"@red","HELLO"]},
-    {"op":"SwapOnVSync","target":"@matrix","args":["@canvas"]}
-  ]
-}
-```
-References use `@id` to refer to earlier objects. All rgbmatrix core and graphics ops are supported.
+---
 
-Admin UI also supports broadcasting command streams via **Broadcast Commands**.
-Sample command stream: `display/sample_commands.json`.
-Sample pixel buffer: `display/sample_pixels.json`.
+## Admin UI
 
-### Management UI Notes
-The management UI can embed the simulator playground and uses the same `/sim` interface for a real-time viewer.
-Payload style options for simulator:
-- `style.color`: single color (e.g., `#ffcc00`)
-- `style.colors`: per-character colors array (length must match text)
-- `style.scroll_ms_per_px`: scroll speed in ms per pixel (default 15)
-
-## How to Render Docs
-OpenAPI (Swagger UI):
 ```bash
-docker run --rm -p 8080:8080 \
-  -e SWAGGER_JSON=/spec/openapi.yaml \
-  -v "$(pwd)/docs/openapi.yaml:/spec/openapi.yaml" \
-  swaggerapi/swagger-ui
+uvicorn admin.main:app --reload --port 8090
 ```
-AsyncAPI (HTML):
+
+- Paste `ADMIN_TOKEN` into the token box to enable live monitoring.
+- Manage clients, templates, rules, and display targets inline.
+- View and filter log events; replay any `payload_received` log.
+- Broadcast text or command streams to all or selected displays.
+- Embed the simulator playground by providing its URL.
+
+---
+
+## Raspberry Pi (Display Server)
+
+### Install
+
+1. Clone this repo to `/opt/display-router/DisplayRouter`
+2. Run `scripts/install_display.sh`
+3. Edit `/etc/systemd/system/display-router.service` to set `ROUTER_WS_URL`, `DISPLAY_ID`, and `DISPLAY_SECRET`
+
+The install script:
+- Installs system dependencies (`python3-venv`, `python3-pil`, `cython3`, etc.)
+- Creates a virtualenv at `.venv` and installs `requirements-display.txt`
+- Installs the rgbmatrix Python bindings from source (skip with `DISPLAY_REQUIREMENTS=0`)
+- Installs and enables the systemd service
+
+### rgbmatrix Python bindings
+
 ```bash
-npx @asyncapi/generator docs/asyncapi.yaml @asyncapi/html-template -o docs/asyncapi-html
+sudo apt-get install python-dev-is-python3 python3-pil cython3
+pip install git+https://github.com/hzeller/rpi-rgb-led-matrix
 ```
 
-## Notes
-The system supports command streams (`data.commands`), full pixel buffers, and simulator embeds that use the same `/sim` interface as the display server.
+Source: https://github.com/hzeller/rpi-rgb-led-matrix
 
-## Versioning
-Versions are derived from git tags via `setuptools_scm`.
-- Tag format: `vX.Y.Z` (e.g., `v1.2.3`)
-- CI/release workflow triggers on tag pushes.
+### Skip rgbmatrix on non-Pi machines
+
+```bash
+DISPLAY_REQUIREMENTS=0 bash scripts/install_display.sh
+# or just use the emulator:
+DISPLAY_RENDERER=sim python -m display.main
+```
+
+---
+
+## Testing
+
+```bash
+make test        # runs pytest
+python -m pytest # directly
+```
+
+Test coverage:
+- `test_rules.py` — rule matching, schedule filtering, priority ordering
+- `test_templates.py` — Jinja2 template rendering
+- `test_display_renderer.py` — console and sim renderer output
+- `test_rgbmatrix_api.py` — rgbmatrix emulator API compatibility
+- `test_transitions.py` — transition types (instant, slide, fade, delay)
+- `test_replay.py` — log event replay (live and dry-run)
+- `test_health.py` — router health and display health endpoints
+- `test_integration.py` — end-to-end router → display WebSocket flow
+
+---
+
+## Docker
+
+```bash
+# Build and run router only
+docker build -t display-router .
+docker run -p 8000:8000 \
+  -e ADMIN_TOKEN=<token> \
+  -e DISPLAY_SECRET=<secret> \
+  -e API_KEY_SALT=<salt> \
+  display-router
+
+# Full stack with simulator
+docker compose up --build
+```
+
+`docker-compose.yml` services: `router`, `display`, `sim-server`, `sim-ui`, `sim-playground`.
+
+---
+
+## Scripts
+
+| Script | Description |
+|---|---|
+| `scripts/run_router.sh` | Run router with default environment variables |
+| `scripts/install_display.sh` | Raspberry Pi display server install helper |
+| `scripts/display.service` | systemd service unit template |
+
+---
+
+## Repository Structure
+
+```
+router/
+  api/          # FastAPI route handlers (client, admin, display)
+  core/         # Config, security, metrics
+  domain/       # SQLModel ORM models
+  services/     # Rules engine, template renderer, display manager, logging, commands
+  storage/      # SQLite/SQLAlchemy session and init
+  cli.py        # console_scripts entry point
+display/
+  main.py       # WebSocket client entry point
+  client.py     # WebSocket connection and message loop
+  render.py     # RenderFrame and console renderer
+  rgbmatrix_renderer.py  # Hardware renderer
+  sim_renderer.py        # Simulator renderer
+  sim_server.py          # /sim JSON endpoint
+  sim_ui.py              # Viewer UI server
+  sim_playground.py      # Playground server
+  command_executor.py    # Command stream executor
+  transitions.py         # Transition types
+  heartbeat.py           # Heartbeat sender
+  config.py              # Display settings
+admin/
+  main.py       # Admin UI FastAPI app
+  api.py        # Admin UI proxy endpoints
+  templates/    # Jinja2 HTML templates
+  static/       # CSS and JS
+shared/
+  schemas.py    # Pydantic request/response models
+  utils/        # Config loader, ID generator, pagination
+rgbmatrix/      # Drop-in rgbmatrix emulator (core + graphics)
+config/         # Example router.json, display.json, router.toml, display.toml
+docs/           # api_contracts.md, data_models.md, openapi.yaml, asyncapi.yaml
+tests/          # pytest test suite
+scripts/        # Install and run helpers
+```
+
+---
+
+## API Specifications
+
+- OpenAPI (Swagger): https://mikeygnyc.github.io/DisplayRouter/swagger/
+- AsyncAPI: https://mikeygnyc.github.io/DisplayRouter/asyncapi/
