@@ -435,23 +435,18 @@ The bootstrap script handles everything end-to-end:
 - Installs the rgbmatrix hardware bindings from source (skip with `DISPLAY_REQUIREMENTS=0`)
 - Writes, enables, and starts the systemd service
 
-Configuration is set via environment variables before piping to bash:
+The script prompts for each setting interactively with sensible defaults:
 
-```bash
-ROUTER_WS_URL=ws://192.168.1.10:8000/display/ws \
-DISPLAY_ID=disp_lobby \
-DISPLAY_SECRET=my-secret \
-curl -fsSL https://raw.githubusercontent.com/mikeygnyc/DisplayRouter/main/scripts/bootstrap_display.sh | bash
+```
+Repo URL             [https://github.com/mikeygnyc/DisplayRouter.git]:
+Install directory    [/opt/display-router]:
+Router WebSocket URL [ws://localhost:8000/display/ws]: ws://192.168.1.10:8000/display/ws
+Display ID           [disp_main]: disp_lobby
+Display secret       [dev-display-secret]:
+Install rgbmatrix hardware bindings? (y/n) [y]:
 ```
 
-| Variable | Default | Description |
-|---|---|---|
-| `REPO_URL` | `https://github.com/mikeygnyc/DisplayRouter.git` | Repo to clone |
-| `INSTALL_DIR` | `/opt/display-router` | Install root |
-| `ROUTER_WS_URL` | `ws://localhost:8000/display/ws` | Router WebSocket URL |
-| `DISPLAY_ID` | `disp_main` | Unique display identifier |
-| `DISPLAY_SECRET` | `dev-display-secret` | Shared secret |
-| `DISPLAY_REQUIREMENTS` | `1` | Set to `0` to skip rgbmatrix hardware bindings |
+Press Enter to accept a default. The secret prompt is silent (no echo). On non-Pi hardware the rgbmatrix bindings default to `n`.
 
 After install, edit `/etc/systemd/system/display-router.service` to change any setting, then:
 

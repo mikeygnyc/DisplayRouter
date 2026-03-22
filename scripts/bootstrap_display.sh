@@ -1,31 +1,14 @@
 #!/usr/bin/env bash
 # Display Router — Raspberry Pi Display Server Bootstrap Installer
 #
-# Usage:
+# Usage (curl-pipeable):
 #   curl -fsSL https://raw.githubusercontent.com/mikeygnyc/DisplayRouter/main/scripts/bootstrap_display.sh | bash
-#
-# Options (env vars):
-#   REPO_URL              Git repo to clone (default: https://github.com/mikeygnyc/DisplayRouter.git)
-#   INSTALL_DIR           Install root (default: /opt/display-router)
-#   ROUTER_WS_URL         Router WebSocket URL (default: ws://localhost:8000/display/ws)
-#   DISPLAY_ID            Display identifier (default: disp_main)
-#   DISPLAY_SECRET        Shared secret (default: dev-display-secret)
-#   DISPLAY_REQUIREMENTS  Set to 0 to skip rgbmatrix hardware bindings install (default: 1)
 
 set -euo pipefail
 
-# ── Config ────────────────────────────────────────────────────────────────────
-REPO_URL="${REPO_URL:-https://github.com/mikeygnyc/DisplayRouter.git}"
-INSTALL_DIR="${INSTALL_DIR:-/opt/display-router}"
-REPO_DIR="$INSTALL_DIR/DisplayRouter"
-VENV_DIR="$REPO_DIR/.venv"
+MIN_PYTHON_MINOR=10
 SERVICE_NAME="display-router"
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
-ROUTER_WS_URL="${ROUTER_WS_URL:-ws://localhost:8000/display/ws}"
-DISPLAY_ID="${DISPLAY_ID:-disp_main}"
-DISPLAY_SECRET="${DISPLAY_SECRET:-dev-display-secret}"
-DISPLAY_REQUIREMENTS="${DISPLAY_REQUIREMENTS:-1}"
-MIN_PYTHON_MINOR=10
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 info()  { echo "[display-router] $*"; }
@@ -36,19 +19,32 @@ require_cmd() {
     command -v "$1" &>/dev/null || die "'$1' not found. $2"
 }
 
+# Read from /dev/tty so prompts work when piped through curl | bash
+prompt() {
+    local var="$1" msg="$2" default="$3"
+    local input
+    printf "%s [%s]: " "$msg" "$default" > /dev/tty
+    read -r input < /dev/tty
+    printf -v "$var" '%s' "${input:-$default}"
+}
+
+prompt_secret() {
+    local var="$1" msg="$2" default="$3"
+    local input
+    printf "%s [%s]: " "$msg" "$default" > /dev/tty
+    read -rs input < /dev/tty
+    echo > /dev/tty
+    printf -v "$var" '%s' "${input:-$default}"
+}
+
 # ── Preflight checks ──────────────────────────────────────────────────────────
 info "Running preflight checks..."
 
-# Must be Linux
 [[ "$(uname -s)" == "Linux" ]] || die "This installer is for Linux/Raspberry Pi only."
 
-# Must have sudo
 require_cmd sudo "Please install sudo or run as root."
-
-# Must have apt-get (Debian/Raspberry Pi OS)
 require_cmd apt-get "This installer requires a Debian-based OS (Raspberry Pi OS recommended)."
 
-# Python 3.10+
 if command -v python3 &>/dev/null; then
     py_minor=$(python3 -c 'import sys; print(sys.version_info.minor)')
     py_major=$(python3 -c 'import sys; print(sys.version_info.major)')
@@ -60,11 +56,54 @@ else
     die "python3 not found. Install it with: sudo apt-get install python3"
 fi
 
-# Warn if not running on a Pi (non-fatal — emulator will be used)
-if ! grep -qi "raspberry" /proc/cpuinfo 2>/dev/null && ! grep -qi "raspberry" /sys/firmware/devicetree/base/model 2>/dev/null; then
+IS_PI=1
+if ! grep -qi "raspberry" /proc/cpuinfo 2>/dev/null && \
+   ! grep -qi "raspberry" /sys/firmware/devicetree/base/model 2>/dev/null; then
     warn "This does not appear to be a Raspberry Pi. Hardware rgbmatrix bindings may not work."
-    warn "Set DISPLAY_REQUIREMENTS=0 to skip the hardware bindings install."
+    IS_PI=0
 fi
+
+# ── Interactive configuration ─────────────────────────────────────────────────
+echo
+echo "Display Router — Display Server Installer"
+echo "==========================================="
+echo
+
+prompt REPO_URL      "Repo URL"             "https://github.com/mikeygnyc/DisplayRouter.git"
+prompt INSTALL_DIR   "Install directory"    "/opt/display-router"
+prompt ROUTER_WS_URL "Router WebSocket URL" "ws://localhost:8000/display/ws"
+prompt DISPLAY_ID    "Display ID"           "disp_main"
+prompt_secret DISPLAY_SECRET "Display secret" "dev-display-secret"
+
+echo
+if [ "$IS_PI" = "1" ]; then
+    printf "Install rgbmatrix hardware bindings? (y/n) [y]: " > /dev/tty
+else
+    printf "Install rgbmatrix hardware bindings? (y/n) [n]: " > /dev/tty
+fi
+read -r hw_input < /dev/tty
+default_hw=$([ "$IS_PI" = "1" ] && echo "y" || echo "n")
+if [[ "${hw_input:-$default_hw}" =~ ^[Yy] ]]; then
+    DISPLAY_REQUIREMENTS=1
+else
+    DISPLAY_REQUIREMENTS=0
+fi
+
+REPO_DIR="$INSTALL_DIR/DisplayRouter"
+VENV_DIR="$REPO_DIR/.venv"
+
+echo
+info "Configuration:"
+info "  Repo URL:   $REPO_URL"
+info "  Install:    $REPO_DIR"
+info "  Router URL: $ROUTER_WS_URL"
+info "  Display ID: $DISPLAY_ID"
+info "  rgbmatrix:  $([ "$DISPLAY_REQUIREMENTS" = "1" ] && echo yes || echo no)"
+echo
+printf "Proceed with install? (y/n) [y]: " > /dev/tty
+read -r confirm < /dev/tty
+[[ "${confirm:-y}" =~ ^[Yy]$ ]] || { info "Aborted."; exit 0; }
+echo
 
 # ── System dependencies ───────────────────────────────────────────────────────
 info "Installing system dependencies..."
@@ -107,7 +146,7 @@ if [ "$DISPLAY_REQUIREMENTS" = "1" ]; then
     info "Installing rgbmatrix hardware bindings (hzeller/rpi-rgb-led-matrix)..."
     pip install --quiet git+https://github.com/hzeller/rpi-rgb-led-matrix
 else
-    info "Skipping rgbmatrix hardware bindings (DISPLAY_REQUIREMENTS=0)."
+    info "Skipping rgbmatrix hardware bindings."
 fi
 
 deactivate
