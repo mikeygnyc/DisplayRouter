@@ -7,8 +7,9 @@ from typing import Any, Dict
 import websockets
 
 from display.config import settings
-from display.render import render_payload, render_to_console
+from display.render import render_payload
 from display.state import last_frame, last_payload
+from display.transitions import Transition, apply_transition
 
 
 async def handle_message(message: Dict[str, Any]) -> None:
@@ -18,7 +19,12 @@ async def handle_message(message: Dict[str, Any]) -> None:
         last_payload = message
         frame = render_payload(message)
         last_frame = frame
-        render_to_console(frame)
+        transition_data = message.get("transition", {}) if isinstance(message, dict) else {}
+        transition = Transition(
+            type=transition_data.get("type", "instant"),
+            duration_ms=int(transition_data.get("duration_ms", 0) or 0),
+        )
+        apply_transition(frame, transition)
 
 
 async def connect_and_listen() -> None:
