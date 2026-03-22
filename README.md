@@ -1,7 +1,9 @@
 # Display Router
 [![CI](https://github.com/mikeygnyc/DisplayRouter/actions/workflows/ci.yml/badge.svg)](https://github.com/mikeygnyc/DisplayRouter/actions/workflows/ci.yml)
 
-Display Router connects data producers to RGB LED matrix displays through a router/formatter that applies templates, rules, and transitions. Producers submit payloads over HTTP; the router matches rules, renders templates, and pushes rendered frames to display servers over WebSocket.
+Display Router connects data producers to HUB75 RGB LED matrix displays through a router/formatter that applies templates, rules, and transitions. Producers submit payloads over HTTP; the router matches rules, renders templates, and pushes rendered frames to display servers over WebSocket.
+
+The included `rgbmatrix/` package is a drop-in emulator for the [rpi-rgb-led-matrix](https://github.com/hzeller/rpi-rgb-led-matrix) Python bindings. Any Python application already written against that library can have its output intercepted and routed through Display Router — to hardware, the simulator, or both — without code changes.
 
 ## System Architecture
 
@@ -21,7 +23,7 @@ Producers ──► Client API ──► Router/Formatter ──► Display Serv
 | Display Server | `display/` | WebSocket client — renders to rgbmatrix, console, or simulator |
 | Admin UI | `admin/` | HTML/JS management interface — CRUD, monitoring, broadcasts |
 | Shared | `shared/` | Pydantic schemas and utilities shared across services |
-| rgbmatrix emulator | `rgbmatrix/` | Drop-in Python emulator for running without hardware |
+| rgbmatrix emulator | `rgbmatrix/` | Drop-in emulator for [rpi-rgb-led-matrix](https://github.com/hzeller/rpi-rgb-led-matrix) — lets existing apps route their output through Display Router without code changes |
 | Config examples | `config/` | JSON and TOML config file examples |
 | Docs | `docs/` | OpenAPI/AsyncAPI specs and implementation notes |
 
