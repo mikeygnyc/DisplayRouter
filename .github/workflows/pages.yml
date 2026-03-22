@@ -30,7 +30,7 @@ jobs:
 
       - name: Install docs tooling
         run: |
-          npm install --no-save swagger-ui-dist @asyncapi/cli
+          npm install --no-save swagger-ui-dist @asyncapi/cli@2.6.0 @asyncapi/html-template@2.6.0
 
       - name: Build docs site
         env:
