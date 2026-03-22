@@ -13,10 +13,15 @@
       <div id="setupNotice" class="notice hidden">
         No admin token configured yet. Generate or paste a token to load data.
       </div>
+      <div id="tokenMismatchNotice" class="notice warning hidden">
+        Saved token does not match the router token. Update your saved token and restart any clients/servers that use it.
+      </div>
       <div class="token">
         <input id="tokenInput" placeholder="Admin token (Bearer)" />
         <button id="saveTokenBtn" onclick="saveToken()" disabled>Save Token</button>
         <button onclick="generateToken()">Generate Token</button>
+        <button onclick="rotateToken()">Rotate Token</button>
+        <button onclick="restartRouterAndWait()">Restart &amp; Wait</button>
         <span id="tokenStatus" class="muted"></span>
       </div>
     </header>

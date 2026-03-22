@@ -1,10 +1,15 @@
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
-from fastapi import FastAPI, HTTPException, Request
+import os
+import threading
+import time
+
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 
 from router.api import admin, client, display
+from router.core.security import require_admin
 from router.storage.db import init_db
 from router.core.metrics import metrics
 from shared.schemas import Error, ValidationError
@@ -59,3 +64,14 @@ async def get_metrics() -> dict:
 app.include_router(client.router)
 app.include_router(admin.router)
 app.include_router(display.router)
+
+
+def _delayed_exit() -> None:
+    time.sleep(0.5)
+    os._exit(0)
+
+
+@app.post("/admin/restart", dependencies=[Depends(require_admin)])
+def restart_router() -> dict:
+    threading.Thread(target=_delayed_exit, daemon=True).start()
+    return {"status": "restarting"}

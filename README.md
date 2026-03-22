@@ -126,6 +126,10 @@ Compose uses these defaults (see `docker-compose.yml`):
 
 If you want to reset all router state and logs, you can delete the `./data/` directory and restart compose.
 
+Admin token bootstrap:
+- On first boot in compose, the router auto-generates an admin token, prints it to the router logs, and saves it into `local_config/router.json`.
+- The Admin UI will auto-fetch the token if it isn't already saved in the browser.
+
 ### Local Config Overrides (Docker Compose)
 
 Compose will auto-copy defaults from `config/` into `local_config/` if those files are missing.

@@ -5,8 +5,14 @@ function getToken() {
 function updateSaveTokenState() {
   const input = document.getElementById("tokenInput");
   const btn = document.getElementById("saveTokenBtn");
+  const notice = document.getElementById("setupNotice");
   if (!input || !btn) return;
-  btn.disabled = !input.value.trim();
+  const hasInput = !!input.value.trim();
+  const hasSaved = !!getToken();
+  btn.disabled = !hasInput;
+  if (notice) {
+    notice.classList.toggle("hidden", hasSaved);
+  }
 }
 
 function saveToken() {
@@ -36,6 +42,37 @@ function generateToken() {
   copyTokenToClipboard(token);
   setTokenStatus("New token generated and saved. Update ADMIN_TOKEN on the router and any admin clients.");
   reloadAdminData();
+  checkTokenMismatch();
+}
+
+async function rotateToken() {
+  const ok = confirm(
+    "Rotate the admin token now? This will update the router config and require restarting the router plus any admin clients."
+  );
+  if (!ok) return;
+  try {
+    const token = getToken();
+    const res = await fetch("/bootstrap/rotate-admin-token", {
+      method: "POST",
+      headers: token ? { Authorization: "Bearer " + token } : {},
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(text || "Token rotation failed");
+    }
+    const data = await res.json();
+    if (data.admin_token) {
+      document.getElementById("tokenInput").value = data.admin_token;
+      localStorage.admin_token = data.admin_token;
+      updateSaveTokenState();
+      copyTokenToClipboard(data.admin_token);
+      setTokenStatus("Token rotated. Restart router and update clients.");
+      reloadAdminData();
+      checkTokenMismatch();
+    }
+  } catch (e) {
+    setTokenStatus(e.message || "Token rotation failed.");
+  }
 }
 
 function setTokenStatus(message) {
@@ -534,6 +571,100 @@ function reloadAdminData() {
   loadBroadcasts();
 }
 
+async function waitForRouterHealthy(timeoutMs = 30000) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const res = await fetch("/admin/restart-router");
+      // If proxy responds, router is reachable; check health directly.
+    } catch {
+      // ignore
+    }
+    try {
+      const res = await fetch("/health");
+      if (res.ok) return true;
+    } catch {
+      // ignore
+    }
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  return false;
+}
+
+async function restartRouterAndWait() {
+  const ok = confirm(
+    "Restart the router now? Active connections will drop and clients/displays may need to reconnect."
+  );
+  if (!ok) return;
+  try {
+    const token = getToken();
+    const res = await fetch("/admin/restart-router", {
+      method: "POST",
+      headers: token ? { Authorization: "Bearer " + token } : {},
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(text || "Router restart failed");
+    }
+    setTokenStatus("Restart requested. Waiting for router to come back...");
+    const okHealth = await waitForRouterHealthy();
+    if (okHealth) {
+      setTokenStatus("Router is back online.");
+      reloadAdminData();
+    } else {
+      setTokenStatus("Router restart timed out. Check logs.");
+    }
+  } catch (e) {
+    setTokenStatus(e.message || "Router restart failed.");
+  }
+}
+
+async function attemptBootstrapToken(retryCount = 0) {
+  if (getToken()) return;
+  try {
+    const res = await fetch("/bootstrap/admin-token");
+    if (res.ok) {
+      const data = await res.json();
+      if (data.admin_token) {
+        document.getElementById("tokenInput").value = data.admin_token;
+        localStorage.admin_token = data.admin_token;
+        updateSaveTokenState();
+        setTokenStatus("Admin token bootstrapped from router.");
+        reloadAdminData();
+        checkTokenMismatch();
+        return;
+      }
+    }
+  } catch {
+    // ignore and retry
+  }
+  if (retryCount < 10) {
+    setTimeout(() => attemptBootstrapToken(retryCount + 1), 2000);
+  }
+}
+
+async function checkTokenMismatch() {
+  const notice = document.getElementById("tokenMismatchNotice");
+  if (!notice) return;
+  const localToken = getToken();
+  if (!localToken) {
+    notice.classList.add("hidden");
+    return;
+  }
+  try {
+    const res = await fetch("/bootstrap/admin-token");
+    if (!res.ok) {
+      notice.classList.add("hidden");
+      return;
+    }
+    const data = await res.json();
+    const serverToken = data.admin_token || "";
+    notice.classList.toggle("hidden", !serverToken || serverToken === localToken);
+  } catch {
+    notice.classList.add("hidden");
+  }
+}
+
 const existing = getToken();
 if (existing) {
   document.getElementById("tokenInput").value = existing;
@@ -550,4 +681,6 @@ if (savedPlayground) {
   document.getElementById("playgroundFrame").src = fallback;
 }
 reloadAdminData();
+attemptBootstrapToken();
+checkTokenMismatch();
 setInterval(loadMonitoring, 5000);
