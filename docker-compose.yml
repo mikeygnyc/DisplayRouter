@@ -7,44 +7,43 @@ services:
       ADMIN_TOKEN: dev-admin-token
       DISPLAY_SECRET: dev-display-secret
       API_KEY_SALT: dev-salt
-      DATABASE_URL: sqlite:///./display_router.db
-      ROUTER_CONFIG_FILE: /app/config/router.json
+      DATABASE_URL: sqlite:////app/data/display_router.db
+      ROUTER_CONFIG_FILE: /app/local_config/router.json
     volumes:
       - ./data:/app/data
       - ./config:/app/config:ro
-    command: ["uvicorn", "router.main:app", "--host", "0.0.0.0", "--port", "8000"]
+      - ./local_config:/app/local_config
+    command: ["sh", "scripts/with_local_config.sh", "uvicorn", "router.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
   display:
     build: .
     depends_on:
       - router
     environment:
-      DISPLAY_CONFIG_FILE: /app/config/display.json
+      DISPLAY_CONFIG_FILE: /app/local_config/display.json
       DISPLAY_RENDERER: sim
+      ROUTER_WS_URL: ws://router:8000/display/ws
     volumes:
       - ./config:/app/config:ro
-    command: ["python", "-m", "display.main"]
-
-  sim-ui:
-    build: .
-    depends_on:
-      - display
-    ports:
-      - "8083:8083"
-    command: ["uvicorn", "display.sim_ui:app", "--host", "0.0.0.0", "--port", "8083"]
-
-  sim-server:
-    build: .
-    depends_on:
-      - display
+      - ./local_config:/app/local_config
     ports:
       - "8082:8082"
-    command: ["uvicorn", "display.sim_server:app", "--host", "0.0.0.0", "--port", "8082"]
+      - "8083:8083"
+      - "8084:8084"
+    command: ["sh", "scripts/with_local_config.sh", "sh", "scripts/run_display_sim.sh"]
 
-  sim-playground:
+  admin-ui:
     build: .
     depends_on:
-      - display
+      - router
     ports:
-      - "8084:8084"
-    command: ["uvicorn", "display.sim_playground:app", "--host", "0.0.0.0", "--port", "8084"]
+      - "8081:8081"
+    environment:
+      ADMIN_TOKEN: dev-admin-token
+      DATABASE_URL: sqlite:////app/data/display_router.db
+      ROUTER_CONFIG_FILE: /app/local_config/router.json
+    volumes:
+      - ./config:/app/config:ro
+      - ./data:/app/data
+      - ./local_config:/app/local_config
+    command: ["sh", "scripts/with_local_config.sh", "uvicorn", "admin.main:app", "--host", "0.0.0.0", "--port", "8081"]

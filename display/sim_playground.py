@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 
@@ -241,9 +243,10 @@ def index() -> str:
 
 @app.get("/ui", response_class=HTMLResponse)
 def ui_proxy() -> str:
+    sim_url = os.getenv("SIM_SERVER_URL", "http://localhost:8082")
     return """
-    <iframe src="/sim" style="width:100%;height:100%;border:0"></iframe>
-    """
+    <iframe src="{sim_url}/sim" style="width:100%;height:100%;border:0"></iframe>
+    """.format(sim_url=sim_url)
 
 
 @app.post("/push")

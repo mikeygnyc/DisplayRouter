@@ -15,4 +15,9 @@ app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="stat
 
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    context = {"request": request}
+    try:
+        return templates.TemplateResponse(request=request, name="index.html", context=context)
+    except TypeError:
+        # Backwards-compatible signature for older Starlette/FastAPI versions.
+        return templates.TemplateResponse("index.html", context)

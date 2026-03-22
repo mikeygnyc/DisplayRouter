@@ -11,7 +11,7 @@ from display.render import render_payload, render_to_console
 from display.state import last_frame, last_payload
 from display.transitions import Transition, apply_transition
 from display.heartbeat import start_heartbeat_sender
-from display.sim_renderer import render_frame as render_to_sim
+from display.sim_renderer import render_frame as render_to_sim, render_pixels as render_pixels_to_sim
 from display.command_executor import execute_commands, CommandError
 
 
@@ -30,6 +30,11 @@ async def handle_message(message: Dict[str, Any]) -> None:
         if isinstance(render_payload_data, dict) and render_payload_data.get("pixels"):
             from display import state
             state.last_pixels = render_payload_data.get("pixels")
+            if settings.renderer == "sim":
+                try:
+                    render_pixels_to_sim(state.last_pixels)
+                except Exception as exc:
+                    print(f"[display] sim push failed: {exc}")
         frame = render_payload(message)
         last_frame = frame
         transition_data = message.get("transition", {}) if isinstance(message, dict) else {}

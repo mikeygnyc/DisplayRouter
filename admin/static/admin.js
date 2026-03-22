@@ -1,11 +1,65 @@
+function getToken() {
+  return localStorage.getItem("admin_token") || "";
+}
+
+function updateSaveTokenState() {
+  const input = document.getElementById("tokenInput");
+  const btn = document.getElementById("saveTokenBtn");
+  if (!input || !btn) return;
+  btn.disabled = !input.value.trim();
+}
+
 function saveToken() {
   const value = document.getElementById("tokenInput").value.trim();
   if (!value) return;
   localStorage.admin_token = value;
+  updateSaveTokenState();
+  copyTokenToClipboard(value);
+  setTokenStatus("Token saved.");
+  reloadAdminData();
+}
+
+function generateToken() {
+  const existing = getToken();
+  if (existing) {
+    const ok = confirm(
+      "A token already exists. Generating a new token will require updating all servers and clients that use the admin token. Continue?"
+    );
+    if (!ok) return;
+  }
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  const token = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+  document.getElementById("tokenInput").value = token;
+  localStorage.admin_token = token;
+  updateSaveTokenState();
+  copyTokenToClipboard(token);
+  setTokenStatus("New token generated and saved. Update ADMIN_TOKEN on the router and any admin clients.");
+  reloadAdminData();
+}
+
+function setTokenStatus(message) {
+  const el = document.getElementById("tokenStatus");
+  if (!el) return;
+  el.textContent = message;
+  if (message) {
+    setTimeout(() => {
+      if (el.textContent === message) el.textContent = "";
+    }, 6000);
+  }
+}
+
+async function copyTokenToClipboard(token) {
+  try {
+    await navigator.clipboard.writeText(token);
+    setTokenStatus("Token copied to clipboard.");
+  } catch {
+    setTokenStatus("Token generated (clipboard copy failed).");
+  }
 }
 
 async function apiFetch(path, options = {}) {
-  const token = localStorage.getItem("admin_token") || "";
+  const token = getToken();
   const headers = Object.assign({}, options.headers || {}, token ? { Authorization: "Bearer " + token } : {});
   const res = await fetch(path, Object.assign({}, options, { headers }));
   if (!res.ok) {
@@ -18,6 +72,10 @@ async function apiFetch(path, options = {}) {
 async function loadClients() {
   const list = document.getElementById("clientList");
   try {
+    if (!getToken()) {
+      list.innerHTML = '<div class="muted">Set admin token to load clients.</div>';
+      return;
+    }
     const data = await apiFetch("/admin/clients");
     list.innerHTML = "";
     data.data.forEach((c) => {
@@ -87,6 +145,10 @@ async function createClient() {
 async function loadTemplates() {
   const list = document.getElementById("templateList");
   try {
+    if (!getToken()) {
+      list.innerHTML = '<div class="muted">Set admin token to load templates.</div>';
+      return;
+    }
     const data = await apiFetch("/admin/templates");
     list.innerHTML = "";
     data.data.forEach((t) => {
@@ -153,6 +215,10 @@ async function createTemplate() {
 async function loadRules() {
   const list = document.getElementById("ruleList");
   try {
+    if (!getToken()) {
+      list.innerHTML = '<div class="muted">Set admin token to load rules.</div>';
+      return;
+    }
     const data = await apiFetch("/admin/rules");
     list.innerHTML = "";
     data.data.forEach((r) => {
@@ -226,7 +292,11 @@ async function createRule() {
 async function loadDisplays() {
   const list = document.getElementById("displayList");
   try {
-    const token = localStorage.getItem("admin_token") || "";
+    const token = getToken();
+    if (!token) {
+      list.innerHTML = '<div class="muted">Set admin token to load displays.</div>';
+      return;
+    }
     const res = await fetch("/admin/displays", {
       headers: token ? { Authorization: "Bearer " + token } : {},
     });
@@ -266,7 +336,11 @@ function showDisplayDetails(d) {
 async function loadLogs() {
   const list = document.getElementById("logList");
   try {
-    const token = localStorage.getItem("admin_token") || "";
+    const token = getToken();
+    if (!token) {
+      list.innerHTML = '<div class="muted">Set admin token to load logs.</div>';
+      return;
+    }
     const filter = document.getElementById("logFilter").value.trim();
     const res = await fetch("/admin/logs", {
       headers: token ? { Authorization: "Bearer " + token } : {},
@@ -297,6 +371,10 @@ async function loadLogs() {
 async function loadBroadcasts() {
   const list = document.getElementById("broadcastList");
   try {
+    if (!getToken()) {
+      list.innerHTML = '<div class="muted">Set admin token to load broadcasts.</div>';
+      return;
+    }
     const data = await apiFetch("/admin/logs?level=info");
     list.innerHTML = "";
     data.data
@@ -413,7 +491,11 @@ function highlightDisplay(displayId) {
 async function loadMonitoring() {
   const grid = document.getElementById("monitoringData");
   try {
-    const token = localStorage.getItem("admin_token") || "";
+    const token = getToken();
+    if (!token) {
+      grid.innerHTML = '<div class="muted">Set admin token to load monitoring.</div>';
+      return;
+    }
     const res = await fetch("/admin/monitoring", {
       headers: token ? { Authorization: "Bearer " + token } : {},
     });
@@ -442,10 +524,22 @@ async function loadMonitoring() {
   }
 }
 
-const existing = localStorage.getItem("admin_token");
+function reloadAdminData() {
+  loadMonitoring();
+  loadClients();
+  loadTemplates();
+  loadRules();
+  loadDisplays();
+  loadLogs();
+  loadBroadcasts();
+}
+
+const existing = getToken();
 if (existing) {
   document.getElementById("tokenInput").value = existing;
 }
+document.getElementById("tokenInput").addEventListener("input", updateSaveTokenState);
+updateSaveTokenState();
 const savedPlayground = localStorage.getItem("playground_url");
 if (savedPlayground) {
   document.getElementById("playgroundUrl").value = savedPlayground;
@@ -455,11 +549,5 @@ if (savedPlayground) {
   document.getElementById("playgroundUrl").value = fallback;
   document.getElementById("playgroundFrame").src = fallback;
 }
-loadMonitoring();
-loadClients();
-loadTemplates();
-loadRules();
-loadDisplays();
-loadLogs();
-loadBroadcasts();
+reloadAdminData();
 setInterval(loadMonitoring, 5000);

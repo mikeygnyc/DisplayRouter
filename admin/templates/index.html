@@ -10,9 +10,14 @@
     <header>
       <h1>Display Router Admin</h1>
       <div class="muted">Status and quick links for management endpoints</div>
+      <div id="setupNotice" class="notice hidden">
+        No admin token configured yet. Generate or paste a token to load data.
+      </div>
       <div class="token">
         <input id="tokenInput" placeholder="Admin token (Bearer)" />
-        <button onclick="saveToken()">Save Token</button>
+        <button id="saveTokenBtn" onclick="saveToken()" disabled>Save Token</button>
+        <button onclick="generateToken()">Generate Token</button>
+        <span id="tokenStatus" class="muted"></span>
       </div>
     </header>
     <div class="wrap">

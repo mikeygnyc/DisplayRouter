@@ -83,7 +83,75 @@ display-router --reload
 docker compose up --build
 ```
 
-This starts: `router` (8000), `sim-server` (8082), `sim-ui` (8083), `sim-playground` (8084), and a `display` client in simulator mode.
+This starts: `router` (8000), `admin-ui` (8081), and a `display` client in simulator mode that also hosts the sim endpoints (8082–8084).
+The sim stack in compose is started by `scripts/run_display_sim.sh`.
+
+### Sim Stack (No Docker)
+
+```bash
+scripts/run_display_sim.sh
+```
+
+### Compose Setup (Full Walkthrough)
+
+1. Ensure Docker Desktop is running.
+2. From the repo root, build and start the stack:
+   ```bash
+   docker compose up --build
+   ```
+3. Verify services are healthy:
+   ```bash
+   docker compose ps
+   ```
+4. Open the Admin UI:
+   URL: `http://localhost:8081` (token: `dev-admin-token`)
+5. Use the simulator UIs (hosted by the `display` container):
+   Simulator JSON endpoint: `http://localhost:8082/sim`, viewer: `http://localhost:8083`, playground: `http://localhost:8084`
+6. Optional: tail logs for a service:
+   ```bash
+   docker compose logs -f router
+   ```
+7. Stop the stack:
+   ```bash
+   docker compose down
+   ```
+
+Compose uses these defaults (see `docker-compose.yml`):
+- `ADMIN_TOKEN=dev-admin-token`
+- `DISPLAY_SECRET=dev-display-secret`
+- `API_KEY_SALT=dev-salt`
+- `DATABASE_URL=sqlite:////app/data/display_router.db` (persisted to `./data/`)
+- `ROUTER_CONFIG_FILE=/app/local_config/router.json`
+- `DISPLAY_CONFIG_FILE=/app/local_config/display.json`
+
+If you want to reset all router state and logs, you can delete the `./data/` directory and restart compose.
+
+### Local Config Overrides (Docker Compose)
+
+Compose will auto-copy defaults from `config/` into `local_config/` if those files are missing.
+This lets you keep local overrides out of git while still bootstrapping a new environment.
+
+Default copy list:
+- `router.json`
+- `display.json`
+- `router.toml`
+- `display.toml`
+
+### Compose Stack Diagram
+
+```
+HTTP (clients)        WebSocket                         HTTP
+   │                      │                              │
+   ▼                      ▼                              ▼
+router (8000) ─────► display client (sim) ───────────► sim endpoints (8082–8084)
+      │                                                   │
+      └──────────────────────────────► admin-ui (8081)    └► sim-server (/sim), sim-ui, sim-playground
+```
+
+Notes:
+- `display` is the real display client; in sim mode it renders into an in-memory simulator buffer and hosts the sim endpoints.
+- `sim-server` (GET `/sim`), `sim-ui`, and `sim-playground` are served from the `display` container in compose.
+- `admin-ui` is a separate service on port 8081.
 
 ### Via Makefile
 
@@ -107,7 +175,7 @@ make release-dry VERSION=1.2.3    # dry run
 | Service | URL |
 |---|---|
 | Router API (`/api`, `/admin`, `/display`) | `http://localhost:8000` |
-| Admin UI | `http://localhost:8090` |
+| Admin UI | `http://localhost:8081` |
 | Simulator JSON endpoint (`/sim`) | `http://localhost:8082` |
 | Simulator viewer | `http://localhost:8083` |
 | Simulator playground | `http://localhost:8084` |
@@ -138,7 +206,7 @@ Point to a config file with `ROUTER_CONFIG_FILE` or `CONFIG_FILE`.
 
 | Key / Env Var | Default | Description |
 |---|---|---|
-| `DATABASE_URL` | `sqlite:///./display_router.db` | SQLAlchemy database URL |
+| `DATABASE_URL` | `sqlite:////app/data/display_router.db` | SQLAlchemy database URL (compose persists to `./data/`) |
 | `ADMIN_TOKEN` | `dev-admin-token` | Static admin bearer token |
 | `API_KEY_SALT` | `dev-salt` | Salt for client API key hashing |
 | `DISPLAY_SECRET` | `dev-display-secret` | Shared secret for display connections |
@@ -507,7 +575,7 @@ docker run -p 8000:8000 \
 docker compose up --build
 ```
 
-`docker-compose.yml` services: `router`, `display`, `sim-server`, `sim-ui`, `sim-playground`.
+`docker-compose.yml` services: `router`, `admin-ui`, `display` (which hosts the sim endpoints on 8082–8084).
 
 ---
 

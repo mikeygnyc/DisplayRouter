@@ -12,3 +12,6 @@ build
 .DS_Store
 .pytest_cache/
 display/__pycache__/*
+data/*
+local_config
+local_config/*
