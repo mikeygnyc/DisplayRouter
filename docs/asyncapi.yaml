@@ -14,7 +14,7 @@ channels:
       message:
         $ref: '#/components/messages/DisplayPayload'
     publish:
-      summary: Display server sends heartbeat to router
+      summary: Display server sends heartbeat to router (interval configurable)
       message:
         $ref: '#/components/messages/Heartbeat'
 components:

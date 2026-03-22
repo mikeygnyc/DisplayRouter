@@ -69,6 +69,12 @@ display-router --reload
 - `make compile`
 - `make test`
 
+## Display Server Config
+- `ROUTER_WS_URL` (default `ws://localhost:8000/display/ws`)
+- `DISPLAY_ID` (default `disp_main`)
+- `DISPLAY_SECRET` (default `dev-display-secret`)
+- `HEARTBEAT_INTERVAL_SECONDS` (default `10`)
+
 ## How to Render Docs
 OpenAPI (Swagger UI):
 ```bash

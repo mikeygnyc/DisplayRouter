@@ -10,6 +10,7 @@ from display.config import settings
 from display.render import render_payload
 from display.state import last_frame, last_payload
 from display.transitions import Transition, apply_transition
+from display.heartbeat import start_heartbeat_sender
 
 
 async def handle_message(message: Dict[str, Any]) -> None:
@@ -34,9 +35,11 @@ async def connect_and_listen() -> None:
         try:
             async with websockets.connect(url, extra_headers=headers) as websocket:
                 print("[display] connected to router")
+                heartbeat_task = start_heartbeat_sender(websocket, settings.display_id)
                 async for raw in websocket:
                     message = json.loads(raw)
                     await handle_message(message)
+                heartbeat_task.cancel()
         except Exception as exc:
             print(f"[display] connection error: {exc}")
             await asyncio.sleep(2)
