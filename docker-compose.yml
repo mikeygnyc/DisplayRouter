@@ -1,0 +1,13 @@
+services:
+  router:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      ADMIN_TOKEN: dev-admin-token
+      DISPLAY_SECRET: dev-display-secret
+      API_KEY_SALT: dev-salt
+      DATABASE_URL: sqlite:///./display_router.db
+    volumes:
+      - ./data:/app/data
+    command: ["uvicorn", "router.main:app", "--host", "0.0.0.0", "--port", "8000"]

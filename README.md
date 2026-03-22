@@ -69,6 +69,21 @@ display-router --reload
 - `make compile`
 - `make test`
 
+## Docker
+Build and run the router:
+```bash
+docker build -t display-router .
+docker run -p 8000:8000 display-router
+```
+
+Or with compose:
+```bash
+docker compose up --build
+```
+
+## Scripts
+- `scripts/run_router.sh` (runs router with default envs)
+
 ## Display Server Config
 - `ROUTER_WS_URL` (default `ws://localhost:8000/display/ws`)
 - `DISPLAY_ID` (default `disp_main`)
