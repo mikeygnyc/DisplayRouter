@@ -7,10 +7,12 @@ from typing import Any, Dict
 import websockets
 
 from display.config import settings
-from display.render import render_payload
+from display.render import render_payload, render_to_console
 from display.state import last_frame, last_payload
 from display.transitions import Transition, apply_transition
 from display.heartbeat import start_heartbeat_sender
+from display.rgbmatrix_renderer import render_frame as render_to_matrix
+from display.sim_renderer import render_frame as render_to_sim
 
 
 async def handle_message(message: Dict[str, Any]) -> None:
@@ -25,7 +27,16 @@ async def handle_message(message: Dict[str, Any]) -> None:
             type=transition_data.get("type", "instant"),
             duration_ms=int(transition_data.get("duration_ms", 0) or 0),
         )
-        apply_transition(frame, transition)
+        render_fn = render_to_console
+        if settings.renderer == "rgbmatrix":
+            try:
+                render_fn = render_to_matrix
+            except Exception as exc:
+                print(f"[display] rgbmatrix unavailable: {exc}")
+                render_fn = render_to_console
+        elif settings.renderer == "sim":
+            render_fn = render_to_sim
+        apply_transition(frame, transition, render_fn)
 
 
 async def connect_and_listen() -> None:

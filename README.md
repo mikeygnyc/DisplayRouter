@@ -111,6 +111,33 @@ pip install git+https://github.com/hzeller/rpi-rgb-led-matrix
 - `DISPLAY_ID` (default `disp_main`)
 - `DISPLAY_SECRET` (default `dev-display-secret`)
 - `HEARTBEAT_INTERVAL_SECONDS` (default `10`)
+- `DISPLAY_RENDERER` (`console`, `rgbmatrix`, or `sim`, default `console`)
+- `MATRIX_WIDTH` (default `64`)
+- `MATRIX_HEIGHT` (default `32`)
+- `MATRIX_CHAIN` (default `1`)
+- `MATRIX_PARALLEL` (default `1`)
+- `MATRIX_BRIGHTNESS` (default `60`)
+- `MATRIX_GPIO_SLOWDOWN` (default `2`)
+- `MATRIX_HARDWARE_MAPPING` (default `regular`)
+- `MATRIX_FONT_PATH` (default `/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf`)
+- `MATRIX_FONT_SIZE` (default `10`)
+
+## Display Simulator
+Run a simple simulator web endpoint:
+```bash
+uvicorn display.sim_server:app --reload --port 8082
+```
+Use `DISPLAY_RENDERER=sim` to print compact frames in the client.
+
+### Simulator UI
+Run a simple web UI:
+```bash
+uvicorn display.sim_ui:app --reload --port 8083
+```
+Payload style options for simulator:
+- `style.color`: single color (e.g., `#ffcc00`)
+- `style.colors`: per-character colors array (length must match text)
+- `style.scroll_ms_per_px`: scroll speed in ms per pixel (default 15)
 
 ## How to Render Docs
 OpenAPI (Swagger UI):
