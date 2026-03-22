@@ -537,6 +537,66 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+  /admin/logs/{log_id}:
+    get:
+      summary: Get log event
+      tags: [admin]
+      security:
+        - AdminBearerAuth: []
+      parameters:
+        - name: log_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Log event
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogEventOut'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /admin/logs/{log_id}/replay:
+    post:
+      summary: Replay payload from log
+      tags: [admin]
+      security:
+        - AdminBearerAuth: []
+      parameters:
+        - name: log_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: dry_run
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Log event replayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReplayResult'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /admin/monitoring:
     get:
       summary: Monitoring summary
@@ -674,6 +734,12 @@ components:
                   errors:
                     - field: payload_type
                       message: must be a non-empty string
+    Conflict:
+      description: Conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
   schemas:
     Error:
       type: object
@@ -1179,6 +1245,21 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/DisplayMonitor'
+    ReplayResult:
+      type: object
+      properties:
+        log:
+          $ref: '#/components/schemas/LogEventOut'
+        routed_displays:
+          type: array
+          items:
+            type: string
+        matched_rule_ids:
+          type: array
+          items:
+            type: string
+        dry_run:
+          type: boolean
     PayloadTypeList:
       type: object
       properties:

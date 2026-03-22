@@ -211,6 +211,18 @@ Client to router traffic is HTTP POST. Router to display traffic is WebSocket.
   - `display_id` (optional)
   - `limit` (optional, default 100)
 
+### Get Log Event
+- Method: `GET`
+- Path: `/admin/logs/{log_id}`
+- Auth: Admin
+
+### Replay Log Event
+- Method: `POST`
+- Path: `/admin/logs/{log_id}/replay`
+- Auth: Admin
+- Query params:
+  - `dry_run` (optional, default false)
+
 ### Monitoring Summary
 - Method: `GET`
 - Path: `/admin/monitoring`

@@ -1,10 +1,10 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlmodel import Session, select
 
 from router.storage.db import get_session
-from router.domain.models import Client, DisplayTarget, Rule, Template
+from router.domain.models import Client, DisplayTarget, Payload, Rule, Template
 from shared.schemas import (
     ClientList,
     ClientOut,
@@ -16,6 +16,7 @@ from shared.schemas import (
     LogEventList,
     LogEventOut,
     MonitoringSummary,
+    ReplayResult,
     ResponseMeta,
     RuleCreate,
     RuleOut,
@@ -32,9 +33,11 @@ from shared.schemas import (
 from shared.utils.ids import make_id
 from shared.utils.pagination import paginate
 from router.core.security import require_admin
-from router.services.logs import list_logs
+from router.services.logs import get_log, list_logs
 from router.services.logging import log_event
 from router.services.display_manager import manager as display_manager
+from router.services.rules import select_rules
+from router.services.templates import render_template
 from router.core.metrics import metrics
 
 router = APIRouter(dependencies=[Depends(require_admin)])
@@ -56,7 +59,10 @@ def list_clients(
 ) -> ClientList:
     clients = session.exec(select(Client)).all()
     data, meta = paginate(clients, page, page_size)
-    return ClientList(data=[ClientOut(**client.model_dump()) for client in data], meta=meta)
+    return ClientList(
+        data=[ClientOut.model_validate(client, from_attributes=True) for client in data],
+        meta=meta,
+    )
 
 
 @router.put("/admin/clients/{client_id}", response_model=ClientOut)
@@ -80,7 +86,7 @@ def update_client(
     session.commit()
     session.refresh(client)
     log_event(session, "info", "client_updated", {"client_id": client.id})
-    return ClientOut(**client.model_dump())
+    return ClientOut.model_validate(client, from_attributes=True)
 
 
 @router.delete("/admin/clients/{client_id}", response_model=ClientOut)
@@ -94,7 +100,7 @@ def disable_client(
     session.commit()
     session.refresh(client)
     log_event(session, "info", "client_disabled", {"client_id": client.id})
-    return ClientOut(**client.model_dump())
+    return ClientOut.model_validate(client, from_attributes=True)
 
 
 @router.post("/admin/templates", response_model=TemplateOut)
@@ -110,7 +116,7 @@ def create_template(
         payload_type=payload.payload_type,
         template=payload.template,
         default_style=payload.default_style,
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
     )
     session.add(template)
     session.commit()
@@ -121,7 +127,7 @@ def create_template(
         "template_created",
         {"template_id": template.id, "payload_type": template.payload_type},
     )
-    return TemplateOut(**template.model_dump())
+    return TemplateOut.model_validate(template, from_attributes=True)
 
 
 @router.get("/admin/templates", response_model=TemplateList)
@@ -132,7 +138,10 @@ def list_templates(
 ) -> TemplateList:
     templates = session.exec(select(Template)).all()
     data, meta = paginate(templates, page, page_size)
-    return TemplateList(data=[TemplateOut(**template.model_dump()) for template in data], meta=meta)
+    return TemplateList(
+        data=[TemplateOut.model_validate(template, from_attributes=True) for template in data],
+        meta=meta,
+    )
 
 
 @router.put("/admin/templates/{template_id}", response_model=TemplateOut)
@@ -156,7 +165,7 @@ def update_template(
     session.commit()
     session.refresh(template)
     log_event(session, "info", "template_updated", {"template_id": template.id})
-    return TemplateOut(**template.model_dump())
+    return TemplateOut.model_validate(template, from_attributes=True)
 
 
 @router.delete("/admin/templates/{template_id}", response_model=TemplateOut)
@@ -168,7 +177,7 @@ def delete_template(
     session.delete(template)
     session.commit()
     log_event(session, "info", "template_deleted", {"template_id": template_id})
-    return TemplateOut(**template.model_dump())
+    return TemplateOut.model_validate(template, from_attributes=True)
 
 
 @router.post("/admin/rules", response_model=RuleOut)
@@ -354,7 +363,7 @@ def create_display(
         host=payload.host,
         port=payload.port,
         capabilities=payload.capabilities,
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
         disabled=False,
     )
     session.add(display)
@@ -366,7 +375,7 @@ def create_display(
         "display_created",
         {"display_id": display.id, "name": display.name},
     )
-    return DisplayTargetOut(**display.model_dump())
+    return DisplayTargetOut.model_validate(display, from_attributes=True)
 
 
 @router.put("/admin/displays/{display_id}", response_model=DisplayTargetOut)
@@ -390,7 +399,7 @@ def update_display(
     session.commit()
     session.refresh(display)
     log_event(session, "info", "display_updated", {"display_id": display.id})
-    return DisplayTargetOut(**display.model_dump())
+    return DisplayTargetOut.model_validate(display, from_attributes=True)
 
 
 @router.delete("/admin/displays/{display_id}", response_model=DisplayTargetOut)
@@ -404,7 +413,7 @@ def disable_display(
     session.commit()
     session.refresh(display)
     log_event(session, "info", "display_disabled", {"display_id": display.id})
-    return DisplayTargetOut(**display.model_dump())
+    return DisplayTargetOut.model_validate(display, from_attributes=True)
 
 
 @router.get("/admin/logs", response_model=LogEventList)
@@ -428,6 +437,122 @@ def list_log_events(
     ]
     meta = ResponseMeta(page=1, page_size=len(data), total=len(data))
     return LogEventList(data=data, meta=meta)
+
+
+@router.get("/admin/logs/{log_id}", response_model=LogEventOut)
+def get_log_event(log_id: str, session: Session = Depends(get_session)) -> LogEventOut:
+    log = get_log(session, log_id)
+    if not log:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Log not found")
+    return LogEventOut(
+        id=log.id,
+        level=log.level,
+        message=log.message,
+        context=log.context,
+        created_at=log.created_at,
+    )
+
+
+@router.post("/admin/logs/{log_id}/replay", response_model=ReplayResult)
+async def replay_log_event(
+    log_id: str,
+    dry_run: bool = Query(default=False),
+    session: Session = Depends(get_session),
+) -> ReplayResult:
+    log = get_log(session, log_id)
+    if not log:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Log not found")
+    if log.message != "payload_received":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only payload_received logs can be replayed")
+
+    payload_id = log.context.get("payload_id") if isinstance(log.context, dict) else None
+    if not payload_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Log missing payload_id")
+
+    payload = session.get(Payload, payload_id)
+    if not payload:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payload not found")
+
+    templates = session.exec(select(Template)).all()
+    selected_template = None
+    if payload.template_id:
+        selected_template = session.get(Template, payload.template_id)
+    if not selected_template:
+        for template in templates:
+            if template.payload_type == payload.payload_type:
+                selected_template = template
+                break
+    if not selected_template and templates:
+        selected_template = templates[0]
+
+    render = {
+        "template": "{data}",
+        "resolved": payload.data,
+        "style": {},
+    }
+    if selected_template:
+        render = render_template(selected_template, payload.data)
+
+    rules = session.exec(select(Rule)).all()
+    matched_rules = select_rules(rules, payload)
+
+    routed_displays = []
+    for rule in matched_rules:
+        for display_id in rule.display_targets:
+            if display_id not in routed_displays:
+                routed_displays.append(display_id)
+    matched_rule_ids = [rule.id for rule in matched_rules]
+
+    if not dry_run:
+        connected_displays = [d for d in routed_displays if display_manager.is_connected(d)]
+        if not connected_displays:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="No connected displays available for replay",
+            )
+        for rule in matched_rules:
+            for display_id in rule.display_targets:
+                await display_manager.send(
+                    display_id,
+                    {
+                        "type": "display_payload",
+                        "display_id": display_id,
+                        "payload_id": payload.id,
+                        "render": render,
+                        "transition": {
+                            "type": rule.transition_type or "instant",
+                            "duration_ms": 0,
+                        },
+                        "expires_at": (payload.received_at + timedelta(seconds=payload.ttl_seconds)).isoformat(),
+                    },
+                )
+
+        log_event(
+            session,
+            "info",
+            "payload_replayed",
+            {"payload_id": payload.id, "routed_displays": routed_displays},
+        )
+    else:
+        log_event(
+            session,
+            "info",
+            "payload_replay_dry_run",
+            {"payload_id": payload.id, "routed_displays": routed_displays},
+        )
+
+    return ReplayResult(
+        log=LogEventOut(
+            id=log.id,
+            level=log.level,
+            message=log.message,
+            context=log.context,
+            created_at=log.created_at,
+        ),
+        routed_displays=routed_displays,
+        matched_rule_ids=matched_rule_ids,
+        dry_run=dry_run,
+    )
 
 
 @router.get("/admin/monitoring", response_model=MonitoringSummary)

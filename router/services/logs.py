@@ -50,3 +50,7 @@ def list_logs(
         if len(filtered) >= limit:
             break
     return filtered
+
+
+def get_log(session: Session, log_id: str) -> Optional[LogEvent]:
+    return session.get(LogEvent, log_id)

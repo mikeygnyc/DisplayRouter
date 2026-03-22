@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import secrets
 from typing import List
 
@@ -24,7 +24,7 @@ from router.services.rules import select_rules
 from router.services.templates import render_template
 from shared.utils.ids import make_id
 from shared.utils.pagination import paginate
-from router.core.security import ClientAuth, hash_api_key, is_admin_token, require_admin
+from router.core.security import hash_api_key, is_admin_token, require_admin, require_client_api_key
 
 router = APIRouter()
 
@@ -46,7 +46,7 @@ def create_client(payload: ClientCreate, session: Session = Depends(get_session)
         contact=payload.contact,
         payload_types=payload.payload_types,
         api_key_hash=hash_api_key(api_key),
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
     )
     session.add(client)
     session.commit()
@@ -63,7 +63,7 @@ def create_client(payload: ClientCreate, session: Session = Depends(get_session)
 @router.get("/api/clients/{client_id}", response_model=ClientOut, dependencies=[Depends(require_admin)])
 def get_client(client_id: str, session: Session = Depends(get_session)) -> ClientOut:
     client = _get_client(session, client_id)
-    return ClientOut(**client.model_dump())
+    return ClientOut.model_validate(client, from_attributes=True)
 
 
 @router.get("/api/clients/{client_id}/payload-types", response_model=PayloadTypeList)
@@ -87,7 +87,7 @@ def list_payload_types(
 async def submit_payload(
     payload: PayloadSubmit,
     session: Session = Depends(get_session),
-    api_key: str = Depends(ClientAuth()),
+    api_key: str = Depends(require_client_api_key),
 ) -> PayloadAccepted:
     client = _get_client(session, payload.client_id)
     if hash_api_key(api_key) != client.api_key_hash:
@@ -103,7 +103,7 @@ async def submit_payload(
         ttl_seconds=payload.ttl_seconds or 60,
         data=payload.data,
         tags=payload.tags,
-        received_at=datetime.utcnow(),
+        received_at=datetime.now(timezone.utc),
     )
     session.add(stored_payload)
     session.commit()
@@ -189,6 +189,6 @@ def list_templates(
     templates = session.exec(select(Template)).all()
     data, meta = paginate(templates, page, page_size)
     return TemplateList(
-        data=[TemplateOut(**template.model_dump()) for template in data],
+        data=[TemplateOut.model_validate(template, from_attributes=True) for template in data],
         meta=meta,
     )

@@ -30,11 +30,7 @@ def require_display_secret(x_display_secret: str = Header(default="")) -> None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid display secret")
 
 
-class ClientAuth:
-    def __init__(self, api_key_header: str = Header(default="", alias="X-API-Key")):
-        self.api_key_header = api_key_header
-
-    def __call__(self) -> str:
-        if not self.api_key_header:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing API key")
-        return self.api_key_header
+def require_client_api_key(x_api_key: str = Header(default="", alias="X-API-Key")) -> str:
+    if not x_api_key:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing API key")
+    return x_api_key

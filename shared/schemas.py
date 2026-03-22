@@ -218,3 +218,10 @@ class MonitoringSummary(BaseModel):
     router_time: datetime
     payloads_received: int
     displays: List[DisplayMonitor]
+
+
+class ReplayResult(BaseModel):
+    log: LogEventOut
+    routed_displays: List[str]
+    matched_rule_ids: List[str]
+    dry_run: bool
