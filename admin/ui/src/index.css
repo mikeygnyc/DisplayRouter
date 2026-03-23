@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  @apply bg-sand text-ink font-sans;
+  background-image: theme('backgroundImage.hero'), theme('backgroundImage.grain');
+  background-size: auto, 8px 8px;
+}
+
+#root {
+  min-height: 100vh;
+}

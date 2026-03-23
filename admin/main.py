@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import json
 import os
 import secrets
@@ -8,7 +6,7 @@ from pathlib import Path
 import httpx
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -20,10 +18,37 @@ app.include_router(admin_api_router)
 BASE_DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
+UI_DIST = BASE_DIR / "ui" / "dist"
+if UI_DIST.exists():
+    assets_dir = UI_DIST / "assets"
+    if assets_dir.exists():
+        app.mount("/ui/assets", StaticFiles(directory=str(assets_dir)), name="ui-assets")
+
+
+def _ui_index_response() -> HTMLResponse:
+    index_path = UI_DIST / "index.html"
+    if index_path.exists():
+        return HTMLResponse(index_path.read_text())
+    return HTMLResponse("<h1>Admin UI build not found.</h1>", status_code=404)
+
+
+@app.get("/ui", response_class=HTMLResponse)
+def ui_index() -> HTMLResponse:
+    return _ui_index_response()
+
+
+@app.get("/ui/{path:path}")
+def ui_spa(path: str) -> HTMLResponse | FileResponse:
+    candidate = UI_DIST / path
+    if candidate.exists() and candidate.is_file():
+        return FileResponse(candidate)
+    return _ui_index_response()
 
 
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request):
+    if UI_DIST.exists():
+        return RedirectResponse(url="/ui")
     context = {"request": request}
     try:
         return templates.TemplateResponse(request=request, name="index.html", context=context)
