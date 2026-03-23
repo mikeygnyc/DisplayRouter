@@ -9,7 +9,7 @@
   "matrix_chain": 1,
   "matrix_parallel": 1,
   "matrix_brightness": 60,
-  "matrix_gpio_slowdown": 2,
+  "matrix_gpio_slowdown": 1,
   "matrix_hardware_mapping": "regular",
   "matrix_font_path": "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
   "matrix_font_size": 10
