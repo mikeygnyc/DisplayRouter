@@ -40,6 +40,12 @@ class Rule(SQLModel, table=True):
     priority: int = 0
     display_targets: List[str] = Field(default_factory=list, sa_column=Column(JSON))
     transition_type: str = "instant"
+    transition_delay_ms: int = 0
+    transition_duration_ms: int = 0
+    transition_direction: Optional[str] = None
+    transition_fade_in_ms: Optional[int] = None
+    transition_fade_out_ms: Optional[int] = None
+    transition_barn_direction: Optional[str] = None
     cooldown_seconds: int = 0
     schedule_timezone: Optional[str] = None
     schedule_days: List[str] = Field(default_factory=list, sa_column=Column(JSON))
@@ -68,6 +74,8 @@ class Payload(SQLModel, table=True):
     ttl_seconds: int = 60
     data: dict = Field(default_factory=dict, sa_column=Column(JSON))
     tags: List[str] = Field(default_factory=list, sa_column=Column(JSON))
+    valid_from: Optional[datetime] = None
+    valid_to: Optional[datetime] = None
     received_at: datetime = Field(default_factory=utcnow)
 
 
@@ -88,3 +96,13 @@ class DisplayPayload(SQLModel):
     transition_type: str
     transition_duration_ms: int
     expires_at: datetime
+    valid_from: Optional[datetime] = None
+    valid_to: Optional[datetime] = None
+
+
+class Carousel(SQLModel, table=True):
+    id: str = Field(primary_key=True)
+    name: str
+    windows: List[Any] = Field(default_factory=list, sa_column=Column(JSON))
+    cadence_seconds: int = 10
+    created_at: datetime = Field(default_factory=utcnow)

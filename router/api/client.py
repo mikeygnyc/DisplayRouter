@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+import asyncio
 import secrets
 from typing import List
 
@@ -15,8 +16,13 @@ from shared.schemas import (
     PayloadAccepted,
     PayloadSubmit,
     PayloadTypeList,
+    PreviewAccepted,
+    PreviewRequest,
     TemplateList,
     TemplateOut,
+    Transition,
+    ValidateRequest,
+    ValidateResult,
 )
 from router.services.display_manager import manager as display_manager
 from router.services.logging import log_event
@@ -28,6 +34,11 @@ from shared.utils.pagination import paginate
 from router.core.security import hash_api_key, is_admin_token, require_admin, require_client_api_key
 
 router = APIRouter()
+
+
+async def _deferred_send(mgr, display_id: str, message: dict, delay: float) -> None:
+    await asyncio.sleep(delay)
+    await mgr.send(display_id, message)
 
 
 def _get_client(session: Session, client_id: str) -> Client:
@@ -104,6 +115,8 @@ async def submit_payload(
         ttl_seconds=payload.ttl_seconds or 60,
         data=payload.data,
         tags=payload.tags,
+        valid_from=payload.valid_from,
+        valid_to=payload.valid_to,
         received_at=datetime.now(timezone.utc),
     )
     session.add(stored_payload)
@@ -157,25 +170,41 @@ async def submit_payload(
     rules = session.exec(select(Rule)).all()
     matched_rules = select_rules(rules, stored_payload)
 
+    now = datetime.now(timezone.utc)
+    # Skip routing if validity window has already closed
+    if stored_payload.valid_to and stored_payload.valid_to.replace(tzinfo=timezone.utc) <= now:
+        return PayloadAccepted(payload_id=stored_payload.id, routed_displays=[], status="expired")
+
     routed_displays: List[str] = []
     for rule in matched_rules:
         for display_id in rule.display_targets:
             if display_id not in routed_displays:
                 routed_displays.append(display_id)
-            await display_manager.send(
-                display_id,
-                {
-                    "type": "display_payload",
-                    "display_id": display_id,
-                    "payload_id": stored_payload.id,
-                    "render": render,
-                    "transition": {
-                        "type": rule.transition_type or "instant",
-                        "duration_ms": 0,
-                    },
-                    "expires_at": (stored_payload.received_at + timedelta(seconds=stored_payload.ttl_seconds)).isoformat() + "Z",
+            ws_message = {
+                "type": "display_payload",
+                "display_id": display_id,
+                "payload_id": stored_payload.id,
+                "payload_type": stored_payload.payload_type,
+                "render": render,
+                "transition": {
+                    "type": rule.transition_type or "instant",
+                    "delay_ms": rule.transition_delay_ms,
+                    "duration_ms": rule.transition_duration_ms,
+                    "direction": rule.transition_direction,
+                    "fade_in_ms": rule.transition_fade_in_ms,
+                    "fade_out_ms": rule.transition_fade_out_ms,
+                    "barn_direction": rule.transition_barn_direction,
                 },
-            )
+                "valid_from": stored_payload.valid_from.isoformat() if stored_payload.valid_from else None,
+                "valid_to": stored_payload.valid_to.isoformat() if stored_payload.valid_to else None,
+                "expires_at": (stored_payload.received_at + timedelta(seconds=stored_payload.ttl_seconds)).isoformat() + "Z",
+            }
+            # Defer send if valid_from is in the future
+            if stored_payload.valid_from and stored_payload.valid_from.replace(tzinfo=timezone.utc) > now:
+                delay = (stored_payload.valid_from.replace(tzinfo=timezone.utc) - now).total_seconds()
+                asyncio.create_task(_deferred_send(display_manager, display_id, ws_message, delay))
+            else:
+                await display_manager.send(display_id, ws_message)
     if routed_displays:
         log_event(
             session,
@@ -207,3 +236,80 @@ def list_templates(
         data=[TemplateOut.model_validate(template, from_attributes=True) for template in data],
         meta=meta,
     )
+
+
+@router.post("/api/preview", response_model=PreviewAccepted, dependencies=[Depends(require_admin)])
+async def preview_payload(
+    payload: PreviewRequest,
+    session: Session = Depends(get_session),
+) -> PreviewAccepted:
+    templates = session.exec(select(Template)).all()
+    selected_template = None
+    if payload.template_id:
+        selected_template = session.get(Template, payload.template_id)
+    if not selected_template:
+        for template in templates:
+            if template.payload_type == payload.payload_type:
+                selected_template = template
+                break
+
+    render = {"template": "{data}", "resolved": payload.data, "style": {}}
+    if "commands" in payload.data or "pixels" in payload.data:
+        render = {"template": "{commands}", "resolved": payload.data, "style": {}}
+        if "commands" in payload.data:
+            render["commands"] = payload.data["commands"]
+        if "pixels" in payload.data:
+            render["pixels"] = payload.data["pixels"]
+    elif selected_template:
+        render = render_template(selected_template, payload.data)
+
+    if payload.all_displays:
+        from router.domain.models import DisplayTarget
+        displays = session.exec(select(DisplayTarget)).all()
+        target_ids = [d.id for d in displays]
+    else:
+        target_ids = payload.display_ids or []
+
+    preview_id = make_id("prev")
+    expires_at = (datetime.now(timezone.utc) + timedelta(seconds=60)).isoformat()
+    sent: List[str] = []
+    for display_id in target_ids:
+        await display_manager.send(
+            display_id,
+            {
+                "type": "display_payload",
+                "display_id": display_id,
+                "payload_id": preview_id,
+                "render": render,
+                "transition": {"type": "instant", "delay_ms": 0, "duration_ms": 0},
+                "expires_at": expires_at,
+            },
+        )
+        sent.append(display_id)
+
+    return PreviewAccepted(preview_id=preview_id, routed_displays=sent, status="accepted")
+
+
+@router.post("/api/validate", response_model=ValidateResult, dependencies=[Depends(require_admin)])
+def validate_payload(payload: ValidateRequest) -> ValidateResult:
+    from jinja2 import TemplateSyntaxError
+    from jinja2 import Environment
+
+    errors: List[str] = []
+    warnings: List[str] = []
+
+    if "commands" in payload.data:
+        cmd_errors = validate_commands(payload.data["commands"])
+        errors.extend(cmd_errors)
+
+    if payload.template:
+        try:
+            env = Environment()
+            env.parse(payload.template)
+        except TemplateSyntaxError as e:
+            errors.append(f"Template syntax error: {e}")
+
+    if not payload.data:
+        warnings.append("data is empty")
+
+    return ValidateResult(valid=len(errors) == 0, errors=errors, warnings=warnings)

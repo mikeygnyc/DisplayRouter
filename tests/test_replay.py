@@ -52,7 +52,7 @@ def test_replay_dry_run_happy_path():
             "match": {"client_id": client_id, "payload_type": "weather.summary"},
             "priority": 10,
             "display_targets": [display_id],
-            "transition": "instant",
+            "transition": {"type": "instant"},
         },
         headers=_auth_headers(),
     )

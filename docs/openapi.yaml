@@ -110,6 +110,60 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+  /api/preview:
+    post:
+      summary: Preview payload on admin sim display
+      tags: [client]
+      security:
+        - ClientApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreviewSubmit'
+      responses:
+        '200':
+          description: Preview accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreviewAccepted'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/validate:
+    post:
+      summary: Validate payload or template
+      tags: [client]
+      security:
+        - ClientApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ValidateRequest'
+      responses:
+        '200':
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidateResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /api/templates:
     get:
       summary: List templates
@@ -495,6 +549,107 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DisplayTarget'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /admin/carousels:
+    get:
+      summary: List carousels
+      tags: [admin]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      security:
+        - AdminBearerAuth: []
+      responses:
+        '200':
+          description: Carousels
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CarouselList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      summary: Create carousel
+      tags: [admin]
+      security:
+        - AdminBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CarouselCreate'
+      responses:
+        '200':
+          description: Carousel created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Carousel'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /admin/carousels/{carousel_id}:
+    put:
+      summary: Update carousel
+      tags: [admin]
+      security:
+        - AdminBearerAuth: []
+      parameters:
+        - name: carousel_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CarouselUpdate'
+      responses:
+        '200':
+          description: Carousel updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Carousel'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      summary: Delete carousel
+      tags: [admin]
+      security:
+        - AdminBearerAuth: []
+      parameters:
+        - name: carousel_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Carousel deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Carousel'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -993,6 +1148,16 @@ components:
           type: integer
         ttl_seconds:
           type: integer
+        tags:
+          type: array
+          items:
+            type: string
+        valid_from:
+          type: string
+          format: date-time
+        valid_to:
+          type: string
+          format: date-time
         data:
           type: object
       example:
@@ -1002,6 +1167,9 @@ components:
         format_hint: compact
         priority: 5
         ttl_seconds: 120
+        tags: [priority, demo]
+        valid_from: '2026-03-22T12:00:00Z'
+        valid_to: '2026-03-22T12:05:00Z'
         data:
           temp_f: 72
           condition: Sunny
@@ -1020,6 +1188,179 @@ components:
         payload_id: pld_789
         routed_displays: [disp_main]
         status: accepted
+    Transition:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [cut, slide, fade, barn_door, wipe]
+        delay_ms:
+          type: integer
+          minimum: 0
+        duration_ms:
+          type: integer
+          minimum: 0
+        direction:
+          type: string
+          enum: [left, right, up, down]
+        fade_in_ms:
+          type: integer
+          minimum: 0
+        fade_out_ms:
+          type: integer
+          minimum: 0
+        barn_direction:
+          type: string
+          enum: [horizontal, vertical]
+      example:
+        type: fade
+        delay_ms: 0
+        duration_ms: 500
+    PreviewSubmit:
+      type: object
+      required: [client_id, payload_type, data]
+      properties:
+        client_id:
+          type: string
+        payload_type:
+          type: string
+        template_id:
+          type: string
+        format_hint:
+          type: string
+        priority:
+          type: integer
+        ttl_seconds:
+          type: integer
+        tags:
+          type: array
+          items:
+            type: string
+        valid_from:
+          type: string
+          format: date-time
+        valid_to:
+          type: string
+          format: date-time
+        data:
+          type: object
+        display_ids:
+          type: array
+          items:
+            type: string
+        all_displays:
+          type: boolean
+          default: true
+      example:
+        client_id: cli_123
+        payload_type: simple_text_scroll
+        data:
+          text: Hello preview
+        all_displays: true
+    PreviewAccepted:
+      type: object
+      properties:
+        preview_id:
+          type: string
+        routed_displays:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+      example:
+        preview_id: prev_001
+        routed_displays: [disp_main]
+        status: accepted
+    ValidateRequest:
+      type: object
+      required: [payload_type, data]
+      properties:
+        payload_type:
+          type: string
+        data:
+          type: object
+        template:
+          type: string
+        context:
+          type: object
+    ValidateResult:
+      type: object
+      properties:
+        valid:
+          type: boolean
+        errors:
+          type: array
+          items:
+            type: string
+        warnings:
+          type: array
+          items:
+            type: string
+      example:
+        valid: true
+        errors: []
+        warnings: []
+    CarouselWindow:
+      type: object
+      properties:
+        id:
+          type: string
+        payload_id:
+          type: string
+        client_id:
+          type: string
+        payload_type:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        every_n_cycles:
+          type: integer
+          default: 1
+        enabled:
+          type: boolean
+          default: true
+    CarouselCreate:
+      type: object
+      required: [name, cadence_seconds, windows]
+      properties:
+        name:
+          type: string
+        cadence_seconds:
+          type: integer
+        windows:
+          type: array
+          items:
+            $ref: '#/components/schemas/CarouselWindow'
+    Carousel:
+      allOf:
+        - $ref: '#/components/schemas/CarouselCreate'
+        - type: object
+          properties:
+            id:
+              type: string
+    CarouselUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        cadence_seconds:
+          type: integer
+        windows:
+          type: array
+          items:
+            $ref: '#/components/schemas/CarouselWindow'
+    CarouselList:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Carousel'
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
     TemplateCreate:
       type: object
       required: [name, payload_type, template]
@@ -1105,7 +1446,7 @@ components:
           items:
             type: string
         transition:
-          type: string
+          $ref: '#/components/schemas/Transition'
         cooldown_seconds:
           type: integer
         schedule:
@@ -1168,7 +1509,7 @@ components:
           items:
             type: string
         transition:
-          type: string
+          $ref: '#/components/schemas/Transition'
         cooldown_seconds:
           type: integer
         schedule:
@@ -1426,6 +1767,22 @@ x-websocket:
                   type: string
                 duration_ms:
                   type: integer
+                delay_ms:
+                  type: integer
+                direction:
+                  type: string
+                fade_in_ms:
+                  type: integer
+                fade_out_ms:
+                  type: integer
+                barn_direction:
+                  type: string
+            valid_from:
+              type: string
+              format: date-time
+            valid_to:
+              type: string
+              format: date-time
             expires_at:
               type: string
               format: date-time

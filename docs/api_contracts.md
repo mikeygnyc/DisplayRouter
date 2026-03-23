@@ -63,6 +63,9 @@ Client to router traffic is HTTP POST. Router to display traffic is WebSocket.
   "format_hint": "string",
   "priority": 0,
   "ttl_seconds": 60,
+  "tags": ["string"],
+  "valid_from": "string (date-time, optional)",
+  "valid_to": "string (date-time, optional)",
   "data": {}
 }
 ```
@@ -75,6 +78,44 @@ Client to router traffic is HTTP POST. Router to display traffic is WebSocket.
   "payload_id": "string",
   "routed_displays": ["string"],
   "status": "accepted"
+}
+```
+
+### Preview Payload
+- Method: `POST`
+- Path: `/api/preview`
+- Auth: Client
+- Request body: same as Submit Payload, plus optional:
+  - `display_ids`: array of display ids
+  - `all_displays`: boolean (default true)
+- Response body:
+```json
+{
+  "preview_id": "string",
+  "routed_displays": ["string"],
+  "status": "accepted"
+}
+```
+
+### Validate Payload or Template
+- Method: `POST`
+- Path: `/api/validate`
+- Auth: Client
+- Request body:
+```json
+{
+  "payload_type": "string",
+  "data": {},
+  "template": "string (optional)",
+  "context": {}
+}
+```
+- Response body:
+```json
+{
+  "valid": true,
+  "errors": [],
+  "warnings": []
 }
 ```
 
@@ -145,7 +186,11 @@ Client to router traffic is HTTP POST. Router to display traffic is WebSocket.
   },
   "priority": 0,
   "display_targets": ["string"],
-  "transition": "instant",
+  "transition": {
+    "type": "fade",
+    "duration_ms": 500,
+    "delay_ms": 0
+  },
   "cooldown_seconds": 0,
   "schedule": {
     "timezone": "string",
@@ -193,6 +238,32 @@ Client to router traffic is HTTP POST. Router to display traffic is WebSocket.
   }
 }
 ```
+
+### Carousel CRUD (Admin)
+- Method: `POST`
+- Path: `/admin/carousels`
+- Auth: Admin
+- Request body:
+```json
+{
+  "name": "string",
+  "cadence_seconds": 10,
+  "windows": [
+    {
+      "id": "string",
+      "payload_id": "string",
+      "client_id": "string",
+      "payload_type": "string",
+      "tags": ["string"],
+      "every_n_cycles": 1,
+      "enabled": true
+    }
+  ]
+}
+```
+- List: `GET /admin/carousels`
+- Update: `PUT /admin/carousels/{carousel_id}`
+- Delete: `DELETE /admin/carousels/{carousel_id}`
 
 ### Update Display Target
 - Method: `PUT`
@@ -305,3 +376,24 @@ Client to router traffic is HTTP POST. Router to display traffic is WebSocket.
   "uptime_seconds": 0
 }
 ```
+
+## Payload Types (SpecUpdates)
+- `raw_*` (rgbmatrix objects)
+- `simple_text_scroll`
+- `simple_text_page`
+- `rich_text_scroll`
+- `rich_text_page`
+- `billboard`
+- `clock`
+- `weather`
+- `image`
+- `animation`
+- `template`
+- `clear`
+
+## Transition Parameters (SpecUpdates)
+- `cut`, `slide`, `fade`, `barn_door`, `wipe`: `delay_ms`
+- `slide`, `fade`, `barn_door`, `wipe`: `duration_ms`
+- `slide`, `wipe`: `direction` (`left`, `right`, `up`, `down`)
+- `fade`: `fade_in_ms`, `fade_out_ms`
+- `barn_door`: `barn_direction` (`horizontal`, `vertical`)

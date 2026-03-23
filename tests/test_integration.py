@@ -57,7 +57,7 @@ def test_payload_routes_to_display():
             "match": {"client_id": client_id, "payload_type": "weather.summary"},
             "priority": 10,
             "display_targets": [display_id],
-            "transition": "instant",
+            "transition": {"type": "instant"},
         },
         headers=_auth_headers(),
     )

@@ -1,4 +1,5 @@
 from datetime import datetime
+from enum import Enum
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
@@ -64,6 +65,52 @@ class ClientList(Envelope):
     meta: ResponseMeta
 
 
+class PayloadType(str, Enum):
+    raw = "raw"
+    simple_text_scroll = "simple_text_scroll"
+    simple_text_page = "simple_text_page"
+    rich_text_scroll = "rich_text_scroll"
+    rich_text_page = "rich_text_page"
+    billboard = "billboard"
+    clock = "clock"
+    weather = "weather"
+    image = "image"
+    animation = "animation"
+    template = "template"
+    clear = "clear"
+
+
+class TransitionType(str, Enum):
+    cut = "cut"
+    instant = "instant"
+    slide = "slide"
+    fade = "fade"
+    barn_door = "barn_door"
+    wipe = "wipe"
+
+
+class TransitionDirection(str, Enum):
+    left = "left"
+    right = "right"
+    up = "up"
+    down = "down"
+
+
+class BarnDirection(str, Enum):
+    horizontal = "horizontal"
+    vertical = "vertical"
+
+
+class Transition(BaseModel):
+    type: TransitionType = TransitionType.instant
+    delay_ms: int = 0
+    duration_ms: int = 0
+    direction: Optional[TransitionDirection] = None
+    fade_in_ms: Optional[int] = None
+    fade_out_ms: Optional[int] = None
+    barn_direction: Optional[BarnDirection] = None
+
+
 class PayloadSubmit(BaseModel):
     client_id: str
     payload_type: str
@@ -73,6 +120,8 @@ class PayloadSubmit(BaseModel):
     ttl_seconds: Optional[int] = 60
     data: Dict[str, Any]
     tags: List[str] = Field(default_factory=list)
+    valid_from: Optional[datetime] = None
+    valid_to: Optional[datetime] = None
 
 
 class PayloadAccepted(BaseModel):
@@ -130,7 +179,7 @@ class RuleCreate(BaseModel):
     match: RuleMatch = Field(default_factory=RuleMatch)
     priority: int
     display_targets: List[str]
-    transition: Optional[str] = "instant"
+    transition: Optional[Transition] = Field(default_factory=Transition)
     cooldown_seconds: Optional[int] = 0
     schedule: RuleSchedule = Field(default_factory=RuleSchedule)
 
@@ -145,7 +194,7 @@ class RuleUpdate(BaseModel):
     match: Optional[RuleMatch] = None
     priority: Optional[int] = None
     display_targets: Optional[List[str]] = None
-    transition: Optional[str] = None
+    transition: Optional[Transition] = None
     cooldown_seconds: Optional[int] = None
     schedule: Optional[RuleSchedule] = None
     enabled: Optional[bool] = None
@@ -225,3 +274,67 @@ class ReplayResult(BaseModel):
     routed_displays: List[str]
     matched_rule_ids: List[str]
     dry_run: bool
+
+
+class PreviewRequest(BaseModel):
+    client_id: Optional[str] = None
+    payload_type: str
+    template_id: Optional[str] = None
+    data: Dict[str, Any]
+    display_ids: Optional[List[str]] = None
+    all_displays: bool = False
+
+
+class PreviewAccepted(BaseModel):
+    preview_id: str
+    routed_displays: List[str]
+    status: str
+
+
+class ValidateRequest(BaseModel):
+    payload_type: str
+    data: Dict[str, Any]
+    template: Optional[str] = None
+    context: Optional[Dict[str, Any]] = None
+
+
+class ValidateResult(BaseModel):
+    valid: bool
+    errors: List[str]
+    warnings: List[str]
+
+
+class CarouselWindowRef(BaseModel):
+    payload_id: Optional[str] = None
+    client_id: Optional[str] = None
+    payload_type: Optional[str] = None
+    tags: List[str] = Field(default_factory=list)
+
+
+class CarouselWindow(BaseModel):
+    id: str
+    payload_ref: CarouselWindowRef
+    every_n_cycles: int = 1
+    enabled: bool = True
+
+
+class CarouselCreate(BaseModel):
+    name: str
+    windows: List[CarouselWindow] = Field(default_factory=list)
+    cadence_seconds: int = 10
+
+
+class CarouselOut(CarouselCreate):
+    id: str
+    created_at: datetime
+
+
+class CarouselUpdate(BaseModel):
+    name: Optional[str] = None
+    windows: Optional[List[CarouselWindow]] = None
+    cadence_seconds: Optional[int] = None
+
+
+class CarouselList(Envelope):
+    data: List[CarouselOut]
+    meta: ResponseMeta

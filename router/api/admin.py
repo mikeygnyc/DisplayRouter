@@ -4,8 +4,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlmodel import Session, select
 
 from router.storage.db import get_session
-from router.domain.models import Client, DisplayTarget, Payload, Rule, Template
+from router.domain.models import Carousel, Client, DisplayTarget, Payload, Rule, Template
 from shared.schemas import (
+    CarouselCreate,
+    CarouselList,
+    CarouselOut,
+    CarouselUpdate,
     ClientList,
     ClientOut,
     ClientUpdate,
@@ -29,6 +33,7 @@ from shared.schemas import (
     TemplateUpdate,
     TemplateList,
     DisplayMonitor,
+    Transition,
 )
 from shared.utils.ids import make_id
 from shared.utils.pagination import paginate
@@ -49,6 +54,37 @@ def _get_or_404(session: Session, model, obj_id: str, label: str):
     if not obj:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"{label} not found")
     return obj
+
+
+def _rule_to_out(rule: Rule) -> RuleOut:
+    return RuleOut(
+        id=rule.id,
+        name=rule.name,
+        match=RuleMatch(
+            client_id=rule.match_client_id,
+            payload_type=rule.match_payload_type,
+            tags=rule.match_tags,
+        ),
+        priority=rule.priority,
+        display_targets=rule.display_targets,
+        transition=Transition(
+            type=rule.transition_type,
+            delay_ms=rule.transition_delay_ms,
+            duration_ms=rule.transition_duration_ms,
+            direction=rule.transition_direction,
+            fade_in_ms=rule.transition_fade_in_ms,
+            fade_out_ms=rule.transition_fade_out_ms,
+            barn_direction=rule.transition_barn_direction,
+        ),
+        cooldown_seconds=rule.cooldown_seconds,
+        schedule=RuleSchedule(
+            timezone=rule.schedule_timezone,
+            days=rule.schedule_days,
+            start=rule.schedule_start,
+            end=rule.schedule_end,
+        ),
+        enabled=rule.enabled,
+    )
 
 
 @router.get("/admin/clients", response_model=ClientList)
@@ -184,6 +220,7 @@ def delete_template(
 @router.post("/admin/rules", response_model=RuleOut)
 
 def create_rule(payload: RuleCreate, session: Session = Depends(get_session)) -> RuleOut:
+    t = payload.transition or Transition()
     rule = Rule(
         id=make_id("rule"),
         name=payload.name,
@@ -192,7 +229,13 @@ def create_rule(payload: RuleCreate, session: Session = Depends(get_session)) ->
         match_tags=payload.match.tags,
         priority=payload.priority,
         display_targets=payload.display_targets,
-        transition_type=payload.transition or "instant",
+        transition_type=t.type.value if hasattr(t.type, "value") else str(t.type),
+        transition_delay_ms=t.delay_ms,
+        transition_duration_ms=t.duration_ms,
+        transition_direction=t.direction.value if t.direction and hasattr(t.direction, "value") else t.direction,
+        transition_fade_in_ms=t.fade_in_ms,
+        transition_fade_out_ms=t.fade_out_ms,
+        transition_barn_direction=t.barn_direction.value if t.barn_direction and hasattr(t.barn_direction, "value") else t.barn_direction,
         cooldown_seconds=payload.cooldown_seconds or 0,
         schedule_timezone=payload.schedule.timezone,
         schedule_days=payload.schedule.days,
@@ -209,17 +252,7 @@ def create_rule(payload: RuleCreate, session: Session = Depends(get_session)) ->
         "rule_created",
         {"rule_id": rule.id, "priority": rule.priority},
     )
-    return RuleOut(
-        id=rule.id,
-        name=rule.name,
-        match=payload.match,
-        priority=rule.priority,
-        display_targets=rule.display_targets,
-        transition=rule.transition_type,
-        cooldown_seconds=rule.cooldown_seconds,
-        schedule=payload.schedule,
-        enabled=rule.enabled,
-    )
+    return _rule_to_out(rule)
 
 
 @router.get("/admin/rules", response_model=RuleList)
@@ -230,26 +263,7 @@ def list_rules(
 ) -> RuleList:
     rules = session.exec(select(Rule)).all()
     data, meta = paginate(rules, page, page_size)
-    return RuleList(data=[RuleOut(
-        id=rule.id,
-        name=rule.name,
-        match=RuleMatch(
-            client_id=rule.match_client_id,
-            payload_type=rule.match_payload_type,
-            tags=rule.match_tags,
-        ),
-        priority=rule.priority,
-        display_targets=rule.display_targets,
-        transition=rule.transition_type,
-        cooldown_seconds=rule.cooldown_seconds,
-        schedule=RuleSchedule(
-            timezone=rule.schedule_timezone,
-            days=rule.schedule_days,
-            start=rule.schedule_start,
-            end=rule.schedule_end,
-        ),
-        enabled=rule.enabled,
-    ) for rule in data], meta=meta)
+    return RuleList(data=[_rule_to_out(rule) for rule in data], meta=meta)
 
 
 @router.put("/admin/rules/{rule_id}", response_model=RuleOut)
@@ -270,7 +284,14 @@ def update_rule(
     if payload.display_targets is not None:
         rule.display_targets = payload.display_targets
     if payload.transition is not None:
-        rule.transition_type = payload.transition
+        t = payload.transition
+        rule.transition_type = t.type.value if hasattr(t.type, "value") else str(t.type)
+        rule.transition_delay_ms = t.delay_ms
+        rule.transition_duration_ms = t.duration_ms
+        rule.transition_direction = t.direction.value if t.direction and hasattr(t.direction, "value") else t.direction
+        rule.transition_fade_in_ms = t.fade_in_ms
+        rule.transition_fade_out_ms = t.fade_out_ms
+        rule.transition_barn_direction = t.barn_direction.value if t.barn_direction and hasattr(t.barn_direction, "value") else t.barn_direction
     if payload.cooldown_seconds is not None:
         rule.cooldown_seconds = payload.cooldown_seconds
     if payload.schedule is not None:
@@ -284,26 +305,7 @@ def update_rule(
     session.commit()
     session.refresh(rule)
     log_event(session, "info", "rule_updated", {"rule_id": rule.id})
-    return RuleOut(
-        id=rule.id,
-        name=rule.name,
-        match=RuleMatch(
-            client_id=rule.match_client_id,
-            payload_type=rule.match_payload_type,
-            tags=rule.match_tags,
-        ),
-        priority=rule.priority,
-        display_targets=rule.display_targets,
-        transition=rule.transition_type,
-        cooldown_seconds=rule.cooldown_seconds,
-        schedule=RuleSchedule(
-            timezone=rule.schedule_timezone,
-            days=rule.schedule_days,
-            start=rule.schedule_start,
-            end=rule.schedule_end,
-        ),
-        enabled=rule.enabled,
-    )
+    return _rule_to_out(rule)
 
 
 @router.delete("/admin/rules/{rule_id}", response_model=RuleOut)
@@ -312,29 +314,11 @@ def delete_rule(
     session: Session = Depends(get_session),
 ) -> RuleOut:
     rule = _get_or_404(session, Rule, rule_id, "Rule")
+    out = _rule_to_out(rule)
     session.delete(rule)
     session.commit()
     log_event(session, "info", "rule_deleted", {"rule_id": rule_id})
-    return RuleOut(
-        id=rule.id,
-        name=rule.name,
-        match=RuleMatch(
-            client_id=rule.match_client_id,
-            payload_type=rule.match_payload_type,
-            tags=rule.match_tags,
-        ),
-        priority=rule.priority,
-        display_targets=rule.display_targets,
-        transition=rule.transition_type,
-        cooldown_seconds=rule.cooldown_seconds,
-        schedule=RuleSchedule(
-            timezone=rule.schedule_timezone,
-            days=rule.schedule_days,
-            start=rule.schedule_start,
-            end=rule.schedule_end,
-        ),
-        enabled=rule.enabled,
-    )
+    return out
 
 
 @router.get("/admin/displays", response_model=DisplayTargetList)
@@ -522,7 +506,12 @@ async def replay_log_event(
                         "render": render,
                         "transition": {
                             "type": rule.transition_type or "instant",
-                            "duration_ms": 0,
+                            "delay_ms": rule.transition_delay_ms,
+                            "duration_ms": rule.transition_duration_ms,
+                            "direction": rule.transition_direction,
+                            "fade_in_ms": rule.transition_fade_in_ms,
+                            "fade_out_ms": rule.transition_fade_out_ms,
+                            "barn_direction": rule.transition_barn_direction,
                         },
                         "expires_at": (payload.received_at + timedelta(seconds=payload.ttl_seconds)).isoformat(),
                     },
@@ -666,3 +655,81 @@ async def broadcast_commands(
         sent.append(display_id)
     log_event(session, "info", "broadcast_commands", {"payload_id": payload_id, "display_ids": sent})
     return {"payload_id": payload_id, "display_ids": sent}
+
+
+@router.post("/admin/carousels", response_model=CarouselOut)
+def create_carousel(
+    payload: CarouselCreate,
+    session: Session = Depends(get_session),
+) -> CarouselOut:
+    carousel = Carousel(
+        id=make_id("car"),
+        name=payload.name,
+        windows=[w.model_dump() for w in payload.windows],
+        cadence_seconds=payload.cadence_seconds,
+        created_at=datetime.now(timezone.utc),
+    )
+    session.add(carousel)
+    session.commit()
+    session.refresh(carousel)
+    log_event(session, "info", "carousel_created", {"carousel_id": carousel.id})
+    return CarouselOut(
+        id=carousel.id,
+        name=carousel.name,
+        windows=payload.windows,
+        cadence_seconds=carousel.cadence_seconds,
+        created_at=carousel.created_at,
+    )
+
+
+@router.get("/admin/carousels", response_model=CarouselList)
+def list_carousels(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=25, ge=1, le=100),
+    session: Session = Depends(get_session),
+) -> CarouselList:
+    from shared.schemas import CarouselWindow, CarouselWindowRef
+    carousels = session.exec(select(Carousel)).all()
+    data, meta = paginate(carousels, page, page_size)
+    out = []
+    for c in data:
+        windows = [CarouselWindow(**w) for w in (c.windows or [])]
+        out.append(CarouselOut(id=c.id, name=c.name, windows=windows, cadence_seconds=c.cadence_seconds, created_at=c.created_at))
+    return CarouselList(data=out, meta=meta)
+
+
+@router.put("/admin/carousels/{carousel_id}", response_model=CarouselOut)
+def update_carousel(
+    carousel_id: str,
+    payload: CarouselUpdate,
+    session: Session = Depends(get_session),
+) -> CarouselOut:
+    from shared.schemas import CarouselWindow
+    carousel = _get_or_404(session, Carousel, carousel_id, "Carousel")
+    if payload.name is not None:
+        carousel.name = payload.name
+    if payload.windows is not None:
+        carousel.windows = [w.model_dump() for w in payload.windows]
+    if payload.cadence_seconds is not None:
+        carousel.cadence_seconds = payload.cadence_seconds
+    session.add(carousel)
+    session.commit()
+    session.refresh(carousel)
+    log_event(session, "info", "carousel_updated", {"carousel_id": carousel.id})
+    windows = [CarouselWindow(**w) for w in (carousel.windows or [])]
+    return CarouselOut(id=carousel.id, name=carousel.name, windows=windows, cadence_seconds=carousel.cadence_seconds, created_at=carousel.created_at)
+
+
+@router.delete("/admin/carousels/{carousel_id}", response_model=CarouselOut)
+def delete_carousel(
+    carousel_id: str,
+    session: Session = Depends(get_session),
+) -> CarouselOut:
+    from shared.schemas import CarouselWindow
+    carousel = _get_or_404(session, Carousel, carousel_id, "Carousel")
+    windows = [CarouselWindow(**w) for w in (carousel.windows or [])]
+    out = CarouselOut(id=carousel.id, name=carousel.name, windows=windows, cadence_seconds=carousel.cadence_seconds, created_at=carousel.created_at)
+    session.delete(carousel)
+    session.commit()
+    log_event(session, "info", "carousel_deleted", {"carousel_id": carousel_id})
+    return out
