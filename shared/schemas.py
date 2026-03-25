@@ -67,6 +67,8 @@ class ClientList(Envelope):
 
 class PayloadType(str, Enum):
     raw = "raw"
+    raw_commands = "raw_commands"
+    raw_pixels = "raw_pixels"
     simple_text_scroll = "simple_text_scroll"
     simple_text_page = "simple_text_page"
     rich_text_scroll = "rich_text_scroll"
@@ -177,6 +179,7 @@ class RuleSchedule(BaseModel):
 class RuleCreate(BaseModel):
     name: str
     match: RuleMatch = Field(default_factory=RuleMatch)
+    template_id: Optional[str] = None
     priority: int
     display_targets: List[str]
     transition: Optional[Transition] = Field(default_factory=Transition)
@@ -192,6 +195,7 @@ class RuleOut(RuleCreate):
 class RuleUpdate(BaseModel):
     name: Optional[str] = None
     match: Optional[RuleMatch] = None
+    template_id: Optional[str] = None
     priority: Optional[int] = None
     display_targets: Optional[List[str]] = None
     transition: Optional[Transition] = None
@@ -262,11 +266,20 @@ class DisplayMonitor(BaseModel):
     queue_length: int
 
 
+class CarouselStatus(BaseModel):
+    carousel_id: str
+    current_window_id: Optional[str] = None
+    cycle: int = 0
+    index: int = -1
+    next_run_at: Optional[datetime] = None
+
+
 class MonitoringSummary(BaseModel):
     router_status: str
     router_time: datetime
     payloads_received: int
     displays: List[DisplayMonitor]
+    carousels: List[CarouselStatus] = Field(default_factory=list)
 
 
 class ReplayResult(BaseModel):
@@ -289,6 +302,21 @@ class PreviewAccepted(BaseModel):
     preview_id: str
     routed_displays: List[str]
     status: str
+
+
+class RouterPreviewRequest(BaseModel):
+    payload_type: str
+    template_id: Optional[str] = None
+    template: Optional[str] = None
+    data: Dict[str, Any]
+    style: Optional[Dict[str, Any]] = None
+
+
+class RouterPreviewResult(BaseModel):
+    status: str
+    payload_type: str
+    rendered_text: str
+    raw_data: Dict[str, Any] = Field(default_factory=dict)
 
 
 class ValidateRequest(BaseModel):
@@ -338,3 +366,17 @@ class CarouselUpdate(BaseModel):
 class CarouselList(Envelope):
     data: List[CarouselOut]
     meta: ResponseMeta
+
+
+class CarouselPreviewRequest(BaseModel):
+    display_ids: Optional[List[str]] = None
+    all_displays: bool = False
+    window_id: Optional[str] = None
+    advance: bool = False
+
+
+class CarouselPreviewResult(BaseModel):
+    carousel_id: str
+    window_id: Optional[str] = None
+    routed_displays: List[str]
+    status: str

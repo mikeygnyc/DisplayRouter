@@ -21,6 +21,8 @@ def _render_simple_text_scroll(resolved: dict, style: dict) -> RenderFrame:
     lines = resolved.get("lines") or [resolved.get("text", "")]
     text = " | ".join(str(l) for l in lines if l)
     merged_style = {**style, "scroll": True}
+    if "color" in resolved and resolved.get("color"):
+        merged_style["color"] = resolved.get("color")
     colors = resolved.get("colors")
     if colors:
         merged_style["colors"] = colors
@@ -35,6 +37,8 @@ def _render_simple_text_page(resolved: dict, style: dict) -> RenderFrame:
     first_page = pages[0] if pages else [""]
     text = " / ".join(str(l) for l in first_page if l)
     merged_style = {**style, "page_ms": resolved.get("page_ms", 3000)}
+    if "color" in resolved and resolved.get("color"):
+        merged_style["color"] = resolved.get("color")
     colors = resolved.get("colors")
     if colors:
         merged_style["colors"] = colors
@@ -118,6 +122,12 @@ def render_payload(message: Dict[str, Any]) -> RenderFrame:
     resolved = render.get("resolved", {})
     style = render.get("style", {})
     payload_type = message.get("payload_type") or resolved.get("payload_type", "")
+
+    if payload_type.startswith("raw_"):
+        text = resolved.get("text")
+        if not text:
+            text = f"[{payload_type}]"
+        return RenderFrame(text=text, style=style, payload_type=payload_type, raw_data=resolved)
 
     # Commands/pixels are handled upstream in client.py before render_payload is called
     if not payload_type:

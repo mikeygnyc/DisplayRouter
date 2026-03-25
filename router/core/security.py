@@ -1,7 +1,7 @@
 import hashlib
 from fastapi import Header, HTTPException, status
 
-from router.core.config import settings
+from router.core.config import current_admin_token, settings
 
 
 def hash_api_key(api_key: str) -> str:
@@ -14,7 +14,7 @@ def require_admin(authorization: str = Header(default="")) -> None:
     if not authorization.startswith("Bearer "):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing bearer token")
     token = authorization.split(" ", 1)[1].strip()
-    if token != settings.admin_token:
+    if token != current_admin_token():
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid admin token")
 
 
@@ -22,7 +22,7 @@ def is_admin_token(authorization: str | None) -> bool:
     if not authorization or not authorization.startswith("Bearer "):
         return False
     token = authorization.split(" ", 1)[1].strip()
-    return token == settings.admin_token
+    return token == current_admin_token()
 
 
 def require_display_secret(x_display_secret: str = Header(default="")) -> None:

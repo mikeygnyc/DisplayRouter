@@ -1,6 +1,8 @@
 from datetime import datetime, timezone, timedelta
+import os
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+import httpx
 from sqlmodel import Session, select
 
 from router.storage.db import get_session
@@ -9,6 +11,8 @@ from shared.schemas import (
     CarouselCreate,
     CarouselList,
     CarouselOut,
+    CarouselPreviewRequest,
+    CarouselPreviewResult,
     CarouselUpdate,
     ClientList,
     ClientOut,
@@ -19,7 +23,10 @@ from shared.schemas import (
     DisplayTargetUpdate,
     LogEventList,
     LogEventOut,
+    CarouselStatus,
     MonitoringSummary,
+    RouterPreviewRequest,
+    RouterPreviewResult,
     ReplayResult,
     ResponseMeta,
     RuleCreate,
@@ -38,6 +45,8 @@ from shared.schemas import (
 from shared.utils.ids import make_id
 from shared.utils.pagination import paginate
 from router.core.security import require_admin
+from router.services.carousel import scheduler as carousel_scheduler
+from display.render import render_payload as render_preview_payload
 from router.services.logs import get_log, list_logs
 from router.services.logging import log_event
 from router.services.display_manager import manager as display_manager
@@ -65,6 +74,7 @@ def _rule_to_out(rule: Rule) -> RuleOut:
             payload_type=rule.match_payload_type,
             tags=rule.match_tags,
         ),
+        template_id=rule.template_id,
         priority=rule.priority,
         display_targets=rule.display_targets,
         transition=Transition(
@@ -227,6 +237,7 @@ def create_rule(payload: RuleCreate, session: Session = Depends(get_session)) ->
         match_client_id=payload.match.client_id,
         match_payload_type=payload.match.payload_type,
         match_tags=payload.match.tags,
+        template_id=payload.template_id,
         priority=payload.priority,
         display_targets=payload.display_targets,
         transition_type=t.type.value if hasattr(t.type, "value") else str(t.type),
@@ -279,6 +290,8 @@ def update_rule(
         rule.match_client_id = payload.match.client_id
         rule.match_payload_type = payload.match.payload_type
         rule.match_tags = payload.match.tags
+    if payload.template_id is not None:
+        rule.template_id = payload.template_id
     if payload.priority is not None:
         rule.priority = payload.priority
     if payload.display_targets is not None:
@@ -565,6 +578,7 @@ def get_monitoring(session: Session = Depends(get_session)) -> MonitoringSummary
         router_time=datetime.now(timezone.utc),
         payloads_received=metrics.get("payloads_received", 0),
         displays=display_status,
+        carousels=[CarouselStatus(**s) for s in carousel_scheduler.status()],
     )
 
 
@@ -733,3 +747,95 @@ def delete_carousel(
     session.commit()
     log_event(session, "info", "carousel_deleted", {"carousel_id": carousel_id})
     return out
+
+
+@router.post("/admin/carousels/{carousel_id}/preview", response_model=CarouselPreviewResult)
+async def preview_carousel(
+    carousel_id: str,
+    payload: CarouselPreviewRequest,
+    session: Session = Depends(get_session),
+) -> CarouselPreviewResult:
+    sent, window_id = await carousel_scheduler.preview(
+        session,
+        carousel_id=carousel_id,
+        display_ids=payload.display_ids,
+        all_displays=payload.all_displays,
+        window_id=payload.window_id,
+        advance=payload.advance,
+    )
+    return CarouselPreviewResult(
+        carousel_id=carousel_id,
+        window_id=window_id,
+        routed_displays=sent,
+        status="accepted" if sent else "skipped",
+    )
+
+
+@router.post("/admin/preview", response_model=RouterPreviewResult)
+def preview_router_output(
+    payload: RouterPreviewRequest,
+    session: Session = Depends(get_session),
+) -> RouterPreviewResult:
+    template = None
+    if payload.template_id:
+        template = session.get(Template, payload.template_id)
+        if not template:
+            raise HTTPException(status_code=404, detail="Template not found")
+    elif payload.template:
+        template = Template(
+            id="tpl_preview",
+            name="Preview",
+            payload_type=payload.payload_type,
+            template=payload.template,
+            default_style=payload.style or {},
+        )
+
+    render = {"template": "{data}", "resolved": payload.data, "style": payload.style or {}}
+    if "commands" in payload.data or "pixels" in payload.data:
+        render = {"template": "{commands}", "resolved": payload.data, "style": payload.style or {}}
+        if "commands" in payload.data:
+            render["commands"] = payload.data["commands"]
+        if "pixels" in payload.data:
+            render["pixels"] = payload.data["pixels"]
+    elif template:
+        render = render_template(template, payload.data)
+
+    sim_url = os.getenv("SIM_SERVER_URL", "http://localhost:8082")
+
+    if "pixels" in payload.data:
+        try:
+            httpx.post(
+                f"{sim_url}/push",
+                json={"pixels": payload.data.get("pixels")},
+                timeout=3.0,
+            )
+        except httpx.RequestError as exc:
+            raise HTTPException(status_code=502, detail=f"Sim server not reachable: {exc}") from exc
+        return RouterPreviewResult(
+            status="ok",
+            payload_type="raw_pixels",
+            rendered_text="",
+            raw_data={"pixels": payload.data.get("pixels")},
+        )
+
+    frame = render_preview_payload({"payload_type": payload.payload_type, "render": render})
+    try:
+        httpx.post(
+            f"{sim_url}/push",
+            json={
+                "text": frame.text,
+                "style": frame.style,
+                "type": frame.payload_type,
+                "raw_data": frame.raw_data,
+            },
+            timeout=3.0,
+        )
+    except httpx.RequestError as exc:
+        raise HTTPException(status_code=502, detail=f"Sim server not reachable: {exc}") from exc
+
+    return RouterPreviewResult(
+        status="ok",
+        payload_type=frame.payload_type,
+        rendered_text=frame.text,
+        raw_data=frame.raw_data or {},
+    )

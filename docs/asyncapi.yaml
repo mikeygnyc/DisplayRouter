@@ -55,6 +55,8 @@ components:
             type: string
           payload_id:
             type: string
+          payload_type:
+            type: string
           render:
             type: object
             properties:
@@ -69,6 +71,7 @@ components:
             properties:
               type:
                 type: string
+                enum: [instant, cut, slide, fade, barn_door, wipe]
               duration_ms:
                 type: integer
               delay_ms:

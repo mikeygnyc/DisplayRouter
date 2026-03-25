@@ -656,6 +656,37 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /admin/carousels/{carousel_id}/preview:
+    post:
+      summary: Preview or advance a carousel window
+      tags: [admin]
+      security:
+        - AdminBearerAuth: []
+      parameters:
+        - name: carousel_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CarouselPreviewRequest'
+      responses:
+        '200':
+          description: Carousel preview sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CarouselPreviewResult'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /admin/logs:
     get:
       summary: List log events
@@ -1129,7 +1160,7 @@ components:
         name: WeatherBot
         description: Local weather producer
         contact: ops@example.com
-        payload_types: [weather.summary]
+        payload_types: [weather]
         created_at: '2026-03-22T12:00:00Z'
         disabled: false
     PayloadSubmit:
@@ -1140,6 +1171,8 @@ components:
           type: string
         payload_type:
           type: string
+          enum: [raw, raw_commands, raw_pixels, simple_text_scroll, simple_text_page, rich_text_scroll, rich_text_page, billboard, clock, weather, image, animation, template, clear]
+          enum: [raw, raw_commands, raw_pixels, simple_text_scroll, simple_text_page, rich_text_scroll, rich_text_page, billboard, clock, weather, image, animation, template, clear]
         template_id:
           type: string
         format_hint:
@@ -1162,7 +1195,7 @@ components:
           type: object
       example:
         client_id: cli_123
-        payload_type: weather.summary
+        payload_type: weather
         template_id: tpl_abc
         format_hint: compact
         priority: 5
@@ -1193,7 +1226,7 @@ components:
       properties:
         type:
           type: string
-          enum: [cut, slide, fade, barn_door, wipe]
+          enum: [instant, cut, slide, fade, barn_door, wipe]
         delay_ms:
           type: integer
           minimum: 0
@@ -1224,6 +1257,7 @@ components:
           type: string
         payload_type:
           type: string
+          enum: [raw, raw_commands, raw_pixels, simple_text_scroll, simple_text_page, rich_text_scroll, rich_text_page, billboard, clock, weather, image, animation, template, clear]
         template_id:
           type: string
         format_hint:
@@ -1278,6 +1312,7 @@ components:
       properties:
         payload_type:
           type: string
+          enum: [raw, raw_commands, raw_pixels, simple_text_scroll, simple_text_page, rich_text_scroll, rich_text_page, billboard, clock, weather, image, animation, template, clear]
         data:
           type: object
         template:
@@ -1306,16 +1341,19 @@ components:
       properties:
         id:
           type: string
-        payload_id:
-          type: string
-        client_id:
-          type: string
-        payload_type:
-          type: string
-        tags:
-          type: array
-          items:
-            type: string
+        payload_ref:
+          type: object
+          properties:
+            payload_id:
+              type: string
+            client_id:
+              type: string
+            payload_type:
+              type: string
+            tags:
+              type: array
+              items:
+                type: string
         every_n_cycles:
           type: integer
           default: 1
@@ -1361,6 +1399,32 @@ components:
             $ref: '#/components/schemas/Carousel'
         meta:
           $ref: '#/components/schemas/ResponseMeta'
+    CarouselPreviewRequest:
+      type: object
+      properties:
+        display_ids:
+          type: array
+          items:
+            type: string
+        all_displays:
+          type: boolean
+        window_id:
+          type: string
+        advance:
+          type: boolean
+    CarouselPreviewResult:
+      type: object
+      properties:
+        carousel_id:
+          type: string
+        window_id:
+          type: string
+        routed_displays:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
     TemplateCreate:
       type: object
       required: [name, payload_type, template]
@@ -1378,7 +1442,7 @@ components:
       example:
         name: Weather Compact
         description: Single line weather summary
-        payload_type: weather.summary
+        payload_type: weather
         template: '{{temp_f}}F {{condition}}'
         default_style:
           color: '#FFFFFF'
@@ -1417,7 +1481,7 @@ components:
         id: tpl_abc
         name: Weather Compact
         description: Single line weather summary
-        payload_type: weather.summary
+        payload_type: weather
         template: '{{temp_f}}F {{condition}}'
         default_style:
           color: '#FFFFFF'
@@ -1466,7 +1530,7 @@ components:
         name: Weather Main
         match:
           client_id: cli_123
-          payload_type: weather.summary
+          payload_type: weather
           tags: [priority]
         priority: 10
         display_targets: [disp_main]
@@ -1532,7 +1596,7 @@ components:
         name: Weather Main
         match:
           client_id: cli_123
-          payload_type: weather.summary
+          payload_type: weather
           tags: [priority]
         priority: 10
         display_targets: [disp_main]
@@ -1711,6 +1775,24 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/DisplayMonitor'
+        carousels:
+          type: array
+          items:
+            $ref: '#/components/schemas/CarouselStatus'
+    CarouselStatus:
+      type: object
+      properties:
+        carousel_id:
+          type: string
+        current_window_id:
+          type: string
+        cycle:
+          type: integer
+        index:
+          type: integer
+        next_run_at:
+          type: string
+          format: date-time
     ReplayResult:
       type: object
       properties:

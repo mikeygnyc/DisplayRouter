@@ -37,6 +37,7 @@ class Rule(SQLModel, table=True):
     match_client_id: Optional[str] = None
     match_payload_type: Optional[str] = None
     match_tags: List[str] = Field(default_factory=list, sa_column=Column(JSON))
+    template_id: Optional[str] = None
     priority: int = 0
     display_targets: List[str] = Field(default_factory=list, sa_column=Column(JSON))
     transition_type: str = "instant"

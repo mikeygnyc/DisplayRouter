@@ -11,6 +11,7 @@ services:
       API_KEY_SALT: dev-salt
       DATABASE_URL: sqlite:////app/data/display_router.db
       ROUTER_CONFIG_FILE: /app/local_config/router.json
+      SIM_SERVER_URL: http://display:8082
     volumes:
       - ./data:/app/data
       - ./config:/app/config:ro

@@ -34,3 +34,4 @@ def use_in_memory_db():
         yield
 
     app.dependency_overrides.pop(db_module.get_session, None)
+    engine.dispose()

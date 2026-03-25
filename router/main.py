@@ -5,19 +5,23 @@ import threading
 import time
 
 from fastapi import Depends, FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from pathlib import Path
 from fastapi.exceptions import RequestValidationError
 
 from router.api import admin, client, display
 from router.core.security import require_admin
 from router.storage.db import init_db
+from router.services.carousel import scheduler as carousel_scheduler
 from router.core.metrics import metrics
 from shared.schemas import Error, ValidationError
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     init_db()
+    carousel_scheduler.start()
     yield
+    carousel_scheduler.stop()
 
 
 app = FastAPI(title="Display Router", lifespan=lifespan)
@@ -64,6 +68,25 @@ async def get_metrics() -> dict:
 app.include_router(client.router)
 app.include_router(admin.router)
 app.include_router(display.router)
+
+
+DOCS_DIR = Path(__file__).resolve().parents[1] / "docs"
+
+
+@app.get("/api-docs/openapi.yaml")
+def serve_openapi_yaml() -> FileResponse:
+    path = DOCS_DIR / "openapi.yaml"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="openapi.yaml not found")
+    return FileResponse(path)
+
+
+@app.get("/api-docs/asyncapi.yaml")
+def serve_asyncapi_yaml() -> FileResponse:
+    path = DOCS_DIR / "asyncapi.yaml"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="asyncapi.yaml not found")
+    return FileResponse(path)
 
 
 def _delayed_exit() -> None:

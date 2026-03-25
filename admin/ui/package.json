@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:full": "concurrently -n ui,admin,sim \"vite\" \"cd ../.. && ROUTER_CONFIG_FILE=./local_config/router.json CONFIG_FILE=./local_config/router.json ADMIN_TOKEN_FILE=./local_config/admin_token.txt uvicorn admin.main:app --reload --port 8081\" \"cd ../.. && SIM_SERVER_URL=http://localhost:8082 sh scripts/run_display_sim.sh\"",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
@@ -20,6 +21,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
     "autoprefixer": "^10.4.27",
+    "concurrently": "^9.2.1",
     "eslint": "^9.39.4",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.5.2",

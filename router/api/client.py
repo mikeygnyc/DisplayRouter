@@ -134,9 +134,10 @@ async def submit_payload(
     )
 
     templates = session.exec(select(Template)).all()
+    templates_by_id = {template.id: template for template in templates}
     selected_template = None
     if payload.template_id:
-        selected_template = session.get(Template, payload.template_id)
+        selected_template = templates_by_id.get(payload.template_id)
     if not selected_template:
         for template in templates:
             if template.payload_type == payload.payload_type:
@@ -145,7 +146,7 @@ async def submit_payload(
     if not selected_template and templates:
         selected_template = templates[0]
 
-    render = {
+    default_render = {
         "template": "{data}",
         "resolved": payload.data,
         "style": {},
@@ -155,17 +156,17 @@ async def submit_payload(
             errors = validate_commands(payload.data["commands"])
             if errors:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="; ".join(errors))
-        render = {
+        default_render = {
             "template": "{commands}",
             "resolved": payload.data,
             "style": payload.data.get("style", {}),
         }
         if "commands" in payload.data:
-            render["commands"] = payload.data["commands"]
+            default_render["commands"] = payload.data["commands"]
         if "pixels" in payload.data:
-            render["pixels"] = payload.data["pixels"]
+            default_render["pixels"] = payload.data["pixels"]
     elif selected_template:
-        render = render_template(selected_template, payload.data)
+        default_render = render_template(selected_template, payload.data)
 
     rules = session.exec(select(Rule)).all()
     matched_rules = select_rules(rules, stored_payload)
@@ -177,6 +178,11 @@ async def submit_payload(
 
     routed_displays: List[str] = []
     for rule in matched_rules:
+        render = default_render
+        if rule.template_id:
+            template = templates_by_id.get(rule.template_id)
+            if template and template.payload_type == payload.payload_type:
+                render = render_template(template, payload.data)
         for display_id in rule.display_targets:
             if display_id not in routed_displays:
                 routed_displays.append(display_id)

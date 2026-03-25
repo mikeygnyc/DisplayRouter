@@ -55,8 +55,8 @@ This document maps the current codebase structure, core flows, and key files to 
 - Config: `display/config.py`.
 
 **Admin UI (`admin/`)**
-- FastAPI shell + static assets: `admin/main.py`, `admin/templates/index.html`, `admin/static/admin.js`, `admin/static/admin.css`.
-- Admin UI JS integration: clients/templates/rules/displays CRUD, logs, monitoring, broadcasts, router restart, token bootstrap/rotate (all in `admin/static/admin.js`).
+- FastAPI shell + web assets: `admin/main.py`, `admin/ui/web/templates/index.html`, `admin/ui/web/static/sim_ui.*`.
+- React admin UI source: `admin/ui/src/App.tsx` (clients/templates/rules/displays CRUD, logs, monitoring, broadcasts, router restart, token bootstrap/rotate).
 
 **Shared Schemas and Utilities**
 - Pydantic schemas used by APIs: `shared/schemas.py`.
@@ -98,4 +98,3 @@ This document maps the current codebase structure, core flows, and key files to 
 - No `preview` or `validate` API endpoints yet.
 - Template linting/validation is not present.
 - Carousel concept not implemented.
-

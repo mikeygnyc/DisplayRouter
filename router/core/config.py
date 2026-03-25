@@ -27,19 +27,28 @@ def _should_auto_generate_token(config_path: str | None, token: str) -> bool:
     return token.strip() in {"", "dev-admin-token"}
 
 
-def _write_admin_token(config_path: str, token: str) -> None:
-    file_path = Path(config_path)
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-    if file_path.suffix.lower() != ".json":
+def _admin_token_path(config_path: str | None) -> Path | None:
+    token_path = os.getenv("ADMIN_TOKEN_FILE")
+    if token_path:
+        return Path(token_path)
+    if config_path:
+        return Path(config_path).parent / "admin_token.txt"
+    return None
+
+
+def _read_admin_token_file(config_path: str | None) -> str | None:
+    token_path = _admin_token_path(config_path)
+    if token_path and token_path.exists():
+        return token_path.read_text().strip()
+    return None
+
+
+def _write_admin_token(config_path: str | None, token: str) -> None:
+    token_path = _admin_token_path(config_path)
+    if not token_path:
         return
-    payload = {}
-    if file_path.exists():
-        try:
-            payload = json.loads(file_path.read_text())
-        except Exception:
-            payload = {}
-    payload["admin_token"] = token
-    file_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+    token_path.parent.mkdir(parents=True, exist_ok=True)
+    token_path.write_text(token + "\n")
 
 
 def _build_settings() -> Settings:
@@ -58,6 +67,10 @@ def _build_settings() -> Settings:
         merged["database_url"] = os.getenv("DATABASE_URL")
     if os.getenv("ADMIN_TOKEN"):
         merged["admin_token"] = os.getenv("ADMIN_TOKEN")
+    else:
+        token_file = _read_admin_token_file(config_path)
+        if token_file:
+            merged["admin_token"] = token_file
     if os.getenv("API_KEY_SALT"):
         merged["api_key_salt"] = os.getenv("API_KEY_SALT")
     if os.getenv("DISPLAY_SECRET"):
@@ -70,7 +83,9 @@ def _build_settings() -> Settings:
     if _should_auto_generate_token(config_path, merged["admin_token"]):
         merged["admin_token"] = secrets.token_hex(32)
         _write_admin_token(config_path, merged["admin_token"])
-        print(f"[router] Generated admin token and saved to {config_path}: {merged['admin_token']}")
+        token_path = _admin_token_path(config_path)
+        if token_path:
+            print(f"[router] Generated admin token and saved to {token_path}: {merged['admin_token']}")
         generated = True
 
     return Settings(
@@ -84,3 +99,13 @@ def _build_settings() -> Settings:
 
 
 settings = _build_settings()
+
+
+def current_admin_token() -> str:
+    config_path = os.getenv("ROUTER_CONFIG_FILE") or os.getenv("CONFIG_FILE")
+    if os.getenv("ADMIN_TOKEN"):
+        return os.getenv("ADMIN_TOKEN", "")
+    token_file = _read_admin_token_file(config_path)
+    if token_file:
+        return token_file
+    return settings.admin_token

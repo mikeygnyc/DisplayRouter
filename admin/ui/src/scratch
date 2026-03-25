@@ -1,0 +1,45 @@
+<div class="bg-gray-950 text-gray-200 p-4 rounded-lg shadow-lg font-mono text-sm h-96 overflow-y-auto border border-gray-800">
+  <!-- Log Header -->
+  <div class="flex items-center justify-between pb-3 border-b border-gray-800 mb-3 sticky top-0 bg-gray-950">
+    <h2 class="text-gray-400 font-semibold">System Logs</h2>
+    <span class="flex items-center text-green-400">
+      <span class="relative flex h-2 w-2 mr-2">
+        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+        <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+      </span>
+      Live
+    </span>
+  </div>
+
+  <!-- Log Entries -->
+  <div class="space-y-1">
+    <!-- Row 1: Info -->
+    <div class="flex gap-3 hover:bg-gray-900 p-1 rounded">
+      <span class="text-blue-400">INFO</span>
+      <span class="text-gray-500">[2024-03-23 19:55:01]</span>
+      <span class="text-gray-200">User authentication successful: user_id=402</span>
+    </div>
+
+    <!-- Row 2: Warning -->
+    <div class="flex gap-3 hover:bg-gray-900 p-1 rounded">
+      <span class="text-yellow-400">WARN</span>
+      <span class="text-gray-500">[2024-03-23 19:55:10]</span>
+      <span class="text-gray-200">High memory usage detected: 85%</span>
+    </div>
+
+    <!-- Row 3: Error -->
+    <div class="flex gap-3 hover:bg-gray-900 p-1 rounded">
+      <span class="text-red-400">ERR </span>
+      <span class="text-gray-500">[2024-03-23 19:55:15]</span>
+      <span class="text-gray-200">Database connection timeout, retrying...</span>
+    </div>
+    
+    <!-- Row 4: Info -->
+    <div class="flex gap-3 hover:bg-gray-900 p-1 rounded">
+      <span class="text-blue-400">INFO</span>
+      <span class="text-gray-500">[2024-03-23 19:55:18]</span>
+      <span class="text-gray-200">Database connection re-established.</span>
+    </div>
+  </div>
+</div>
+

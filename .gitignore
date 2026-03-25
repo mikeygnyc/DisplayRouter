@@ -15,3 +15,7 @@ display/__pycache__/*
 data/*
 local_config
 local_config/*
+display_router.db
+local_config/display_router.db
+local_config/admin_token.txt
+local_config/admin_token.json

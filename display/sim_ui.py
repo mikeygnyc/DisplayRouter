@@ -130,8 +130,17 @@ HTML = """
             }
           } else {
             el.textContent = text;
-            if (style.color) {
-              el.style.color = style.color;
+            let resolvedColor = style.color;
+            if (!resolvedColor && Array.isArray(style.colors) && style.colors.length > 0) {
+              const first = style.colors[0];
+              if (Array.isArray(first) && first.length > 0) {
+                resolvedColor = first[0];
+              } else if (typeof first === 'string') {
+                resolvedColor = first;
+              }
+            }
+            if (resolvedColor) {
+              el.style.color = resolvedColor;
             }
           }
           // scroll if text is wider than the matrix
